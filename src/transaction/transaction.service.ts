@@ -9,17 +9,17 @@ export class TransactionService {
   ) {}
 
   async addTransaction(transactionData: any): Promise<any> {
-    const { ref_id } = transactionData;
+    const { userId } = transactionData;
 
-    const jobExist = await this.transactionQueue.getJob(ref_id);
+    // const jobExist = await this.transactionQueue.getJob(ref_id);
 
-    if (jobExist) {
-      return {
-        id: ref_id,
-        status: 'failed',
-        message: `Transaction exist for ref id ${ref_id}`,
-      };
-    }
+    // if (jobExist) {
+    //   return {
+    //     id: ref_id,
+    //     status: 'failed',
+    //     message: `Transaction exist for ref id ${ref_id}`,
+    //   };
+    // }
 
     const job = await this.transactionQueue.add(
       {
@@ -27,7 +27,8 @@ export class TransactionService {
         createdAt: new Date(),
       },
       {
-        jobId: `${ref_id}`, // Unique job ID
+        deduplication: { id: userId },
+        jobId: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, // Unique job ID
         removeOnComplete: true,
         removeOnFail: false,
         attempts: 3,
@@ -47,7 +48,7 @@ export class TransactionService {
     return {
       id: job.id,
       status: 'queued',
-      message: `Transaction queued for ref id ${ref_id}`,
+      message: `Transaction queued for userId ${userId}`,
     };
   }
 

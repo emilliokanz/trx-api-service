@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
+import { Module } from '@nestjs/common';
+import { TransactionController } from '../transaction/transaction.controller';
 import { TransactionProcessor } from '../transaction/transaction.processor';
 import { TransactionService } from '../transaction/transaction.service';
-import { TransactionController } from '../transaction/transaction.controller';
 
 @Module({
   imports: [
@@ -10,7 +10,7 @@ import { TransactionController } from '../transaction/transaction.controller';
       redis: {
         host: 'localhost',
         port: 6379,
-        password:'your_secure_password',
+        password: 'your_secure_password',
       },
     }),
     BullModule.registerQueue({

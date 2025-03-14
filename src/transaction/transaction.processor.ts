@@ -8,18 +8,18 @@ export class TransactionProcessor {
 
   @Process({ concurrency: 100 })
   async processTransaction(job: Job<any>) {
-    this.logger.debug(`Processing transaction for user: ${job.data.ref_id}`);
+    this.logger.debug(`Processing transaction for user: ${job.data.userId}`);
 
     try {
       // Perform the actual transaction logic here
       // e.g., database operations, external API calls, etc.
       await this.executeTransaction(job.data);
 
-      this.logger.debug(`Transaction completed for user: ${job.data.ref_id}`);
+      this.logger.debug(`Transaction completed for user: ${job.data.userId}`);
       return { success: true };
     } catch (error) {
       this.logger.error(
-        `Transaction failed for user: ${job.data.ref_id}`,
+        `Transaction failed for user: ${job.data.userId}`,
         error.stack,
       );
       throw error;
