@@ -17,7 +17,7 @@ import { TransactionService } from '../transaction/transaction.service';
       name: 'userTransactions',
       // Setting this option prevents the queue from processing multiple jobs at once
       defaultJobOptions: {
-        removeOnComplete: 3600,
+        removeOnComplete: false,
         removeOnFail: false,
       },
     }),
