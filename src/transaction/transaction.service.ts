@@ -4,9 +4,15 @@ import axios from 'axios';
 import * as bcrypt from 'bcrypt';
 import { Queue } from 'bull';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import { CustomerService } from 'src/customer/customer.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import generateReferenceId from 'src/utils/generateReferenceId';
 import generateSignature from 'src/utils/generateSignature';
+import {
+  Bill,
+  TransactionDetail,
+  TransactionRequest,
+} from './transactionIface';
 
 const USERNAME = 'beyuziDVABxo';
 const API_KEY = '50938246-642e-5e7e-8ee2-33cafc35294b';
@@ -20,28 +26,30 @@ export class TransactionService {
   constructor(
     @InjectQueue('userTransactions') private readonly transactionQueue: Queue,
     private prisma: PrismaService,
+    private customer: CustomerService,
   ) {}
 
   async addTransaction(transactionData: any, apiKey: string): Promise<any> {
-    const { customer_no } = transactionData;
+    const { customer_no, username } = transactionData;
 
     const ref_id = generateReferenceId();
 
     // queue job only if it meets preTransaction requirements
-    const isValidated = await this.preTransaction(
+    const transactionDetail = await this.preTransaction(
       transactionData,
       ref_id,
       apiKey,
     );
 
-    if (typeof isValidated == 'string') {
-      return new HttpException(isValidated, HttpStatus.BAD_REQUEST);
+    if (typeof transactionDetail == 'string') {
+      return new HttpException(transactionDetail, HttpStatus.BAD_REQUEST);
     }
 
     const job = await this.transactionQueue.add(
       {
         ...transactionData,
-        createdAt: new Date(),
+        ref_id,
+        transactionDetail,
       },
       {
         deduplication: { id: customer_no },
@@ -84,8 +92,20 @@ export class TransactionService {
     };
   }
 
-  async requestTransaction(transactionData: any) {
-    const { buyer_sku_code, customer_no, ref_id } = transactionData;
+  async getTransactionHistories() {}
+
+  async getTransactionHistory() {}
+
+  async requestTransaction(transactionData: TransactionRequest) {
+    const { buyer_sku_code, customer_no, ref_id, transactionDetail, username } =
+      transactionData;
+
+    const { bill } = transactionDetail;
+
+    const deductedBalance = bill.userBalance - bill.itemPrice;
+
+    // Deduct user balance temporary
+    await this.customer.updateUserBalance(deductedBalance, username);
 
     try {
       const sign = generateSignature(USERNAME, API_KEY, ref_id);
@@ -104,9 +124,13 @@ export class TransactionService {
       );
 
       await this.prisma.transactionHistory.create({ data: requestBody });
-
+      console.log('Success Digiflazz Request Transaction', response.data);
       return response.data;
     } catch (error) {
+      console.log('Error Digiflazz Request Transaction', error.response.data);
+
+      // Return deducted balance
+      await this.customer.updateUserBalance(bill.userBalance, username);
       return new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -124,28 +148,25 @@ export class TransactionService {
       return `Transaction exist for ref id ${ref_id}`;
     }
 
-    const findUser = await this.prisma.customer.findMany({
-      where: { username },
-    });
+    const findUser = await this.customer.getUserByUsername(username);
 
     if (findUser.length == 0) {
       return 'User not found';
     }
 
-    const validApiKey = await bcrypt.compare(apiKey.trim(), findUser[0].apiKey);
-    console.log(validApiKey, 'valid api key');
+    const validApiKey = await bcrypt.compare(apiKey, findUser[0].apiKey);
 
     if (!validApiKey) {
       return 'Invalid API key';
     }
 
-    const isPriceMatch = await this.comparePriceAndBalance(
+    const bill = await this.comparePriceAndBalance(
       buyer_sku_code,
       Number(findUser[0].balance),
     );
 
-    if (typeof isPriceMatch == 'string') {
-      return isPriceMatch;
+    if (typeof bill == 'string') {
+      return bill;
     }
 
     const findTransaction = await this.prisma.transactionHistory.findUnique({
@@ -156,7 +177,12 @@ export class TransactionService {
       return 'Transaction already exist';
     }
 
-    return true;
+    const transactionDetail: TransactionDetail = {
+      customerData: findUser[0],
+      bill,
+    };
+
+    return transactionDetail;
   }
 
   async comparePriceAndBalance(buyer_sku_code: string, userBalance: number) {
@@ -165,8 +191,6 @@ export class TransactionService {
         buyer_sku_code,
       },
     });
-
-    console.log(sellerPrice, ' seller price');
 
     if (sellerPrice.length == 0) {
       return 'Product not found';
@@ -196,27 +220,34 @@ export class TransactionService {
       return `Setup price fo code ${buyer_sku_code} is too low`;
     }
 
-    if (userBalance < currentPrice.price) {
+    if (userBalance < sellerPrice[0].price) {
       this.logger.debug(
-        `User's balance ${userBalance} is too low for product price ${currentPrice.price}`,
+        `User's balance ${userBalance} is too low for product price ${sellerPrice[0].price}`,
       );
-      return `User's balance ${userBalance} is too low for product price ${currentPrice.price}`;
+      return `User's balance ${userBalance} is too low for product price ${sellerPrice[0].price}`;
     }
 
     const sellerBalance = await checkBalance();
 
     if (sellerBalance.data < currentPrice.price) {
       this.logger.debug(
-        `Sellers's balance ${userBalance} is too low for product price ${currentPrice.price}`,
+        `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice.price}`,
       );
-      return `Sellers's balance ${userBalance} is too low for product price ${currentPrice.price}`;
+      return `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice.price}`;
     }
 
     this.logger.debug(
       `Our price ${sellerPrice[0].price} > current price ${currentPrice.price}`,
     );
 
-    return true;
+    this.logger.debug(`Current Seller Balance: ${userBalance}`);
+
+    const bill: Bill = {
+      itemPrice: sellerPrice[0].price,
+      userBalance,
+    };
+
+    return bill;
   }
 }
 
@@ -247,3 +278,5 @@ async function httpAgentPost(requestBody: any, url: string) {
 
   return response;
 }
+
+async function divideProfit() {}

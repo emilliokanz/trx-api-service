@@ -48,6 +48,14 @@ export class CustomerService {
     };
   }
 
+  async getUserByUsername(username: string) {
+    const findUser = await this.prisma.customer.findMany({
+      where: { username },
+    });
+
+    return findUser;
+  }
+
   async generateApiKey(username: string) {
     const findUser = await this.prisma.customer.findMany({
       where: { username },

@@ -12,12 +12,12 @@ export class TransactionProcessor {
 
   @Process()
   async processTransaction(job: Job<any>) {
-    this.logger.debug(`Processing transaction for ref id: ${job.data}`);
+    this.logger.debug(`Processing transaction for ref id: ${job.data.ref_id}`);
+    console.log('Transaction details to be processed: ', job.data);
 
     try {
       await this.executeTransaction(job.data);
-
-      this.logger.debug(`Transaction completed for ref id: ${job.data}`);
+      this.logger.debug(`Transaction completed for ref id: ${job.data.ref_id}`);
       return { success: true };
     } catch (error) {
       this.logger.error(
@@ -29,6 +29,6 @@ export class TransactionProcessor {
   }
 
   private async executeTransaction(data: any): Promise<void> {
-    await this.transactionHistory.requestTransaction(data);
+    const response = await this.transactionHistory.requestTransaction(data);
   }
 }

@@ -21,6 +21,10 @@ model TransactionHistory {
   sign           String
   customer       Customer? @relation(fields: [customer_id], references: [id])
   customer_id    Int?
+  status         String?
+  profit         Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
 }
 
 model Customer {
@@ -29,13 +33,25 @@ model Customer {
   balance            Int
   apiKey             String
   TransactionHistory TransactionHistory[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
 }
 
 model ProductPrice {
-  id             Int    @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   brand          String
   category       String
   price          Int
   buyer_sku_code String
   product_name   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+}
+
+model Owner {
+  id        Int      @id @default(autoincrement())
+  name      String
+  balance   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
