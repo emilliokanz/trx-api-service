@@ -29,6 +29,6 @@ export class TransactionProcessor {
   }
 
   private async executeTransaction(data: any): Promise<void> {
-    const response = await this.transactionHistory.requestTransaction(data);
+    await this.transactionHistory.requestTransaction(data);
   }
 }
