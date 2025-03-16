@@ -16,4 +16,12 @@ export interface TransactionDetail {
 export interface Bill {
   itemPrice: number;
   userBalance: number;
+  profit: number;
+}
+
+export enum TransactionStatus {
+  PENDING = 'Pending',
+  SUCCESS = 'Sukses',
+  FAILED = 'Gagal',
+  INDETERMINATE = 'Indeterminate',
 }

@@ -5,6 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { Queue } from 'bull';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { CustomerService } from 'src/customer/customer.service';
+import PaginationIface from 'src/interface/paginationIface';
+import { OwnerService } from 'src/owner/owner.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import generateReferenceId from 'src/utils/generateReferenceId';
 import generateSignature from 'src/utils/generateSignature';
@@ -12,6 +14,7 @@ import {
   Bill,
   TransactionDetail,
   TransactionRequest,
+  TransactionStatus,
 } from './transactionIface';
 
 const USERNAME = 'beyuziDVABxo';
@@ -27,6 +30,7 @@ export class TransactionService {
     @InjectQueue('userTransactions') private readonly transactionQueue: Queue,
     private prisma: PrismaService,
     private customer: CustomerService,
+    private owner: OwnerService,
   ) {}
 
   async addTransaction(transactionData: any, apiKey: string): Promise<any> {
@@ -71,13 +75,13 @@ export class TransactionService {
     );
 
     return {
-      id: job.id,
-      status: 'queued',
-      message: `Transaction queued for userId ${customer_no}`,
+      ref_id: job.id,
+      status: 'processing',
+      message: `Transaction in process`,
     };
   }
 
-  async getTransactionStatus(jobId: string): Promise<any> {
+  async getJobTransactionStatus(jobId: string): Promise<any> {
     const job = await this.transactionQueue.getJob(jobId);
 
     if (!job) {
@@ -92,15 +96,37 @@ export class TransactionService {
     };
   }
 
-  async getTransactionHistories() {}
+  async getTransactionHistories(page: number, take: number) {
+    const data = await this.prisma.transactionHistory.findMany({
+      skip: page - 1,
+      take,
+    });
 
-  async getTransactionHistory() {}
+    const totalData = await this.prisma.transactionHistory.count();
+
+    const paginationData: PaginationIface = {
+      data,
+      totalData,
+      page,
+      pageLength: Math.ceil(totalData / take),
+    };
+
+    return paginationData;
+  }
+
+  async getTransactionHistoryById(ref_id: string) {
+    const data = await this.prisma.transactionHistory.findUnique({
+      where: { ref_id },
+    });
+
+    return data;
+  }
 
   async requestTransaction(transactionData: TransactionRequest) {
     const { buyer_sku_code, customer_no, ref_id, transactionDetail, username } =
       transactionData;
 
-    const { bill } = transactionDetail;
+    const { bill, customerData } = transactionDetail;
 
     const deductedBalance = bill.userBalance - bill.itemPrice;
 
@@ -123,7 +149,16 @@ export class TransactionService {
         'https://api.digiflazz.com/v1/transaction',
       );
 
-      await this.prisma.transactionHistory.create({ data: requestBody });
+      await this.prisma.transactionHistory.create({
+        data: {
+          ...requestBody,
+          profit: bill.profit,
+          customer_id: customerData.id,
+        },
+      });
+
+      await this.owner.divideOwnerProfit(bill.profit);
+
       console.log('Success Digiflazz Request Transaction', response.data);
       return response.data;
     } catch (error) {
@@ -133,6 +168,59 @@ export class TransactionService {
       await this.customer.updateUserBalance(bill.userBalance, username);
       return new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  async getPaymentTransactionStatus(ref_id: string) {
+    console.log(ref_id, 'ref id');
+    const transaction = await this.prisma.transactionHistory.findUnique({
+      where: { ref_id },
+    });
+
+    if (!transaction) {
+      return new HttpException('Transaction not found', HttpStatus.BAD_REQUEST);
+    }
+
+    const checkTransactionDate =
+      transaction.createdAt.getTime() + 7.776e9 - 300000 <= Date.now();
+
+    const checkTransactionStatus = [
+      TransactionStatus.SUCCESS.toString(),
+      TransactionStatus.FAILED.toString(),
+      TransactionStatus.INDETERMINATE.toString(),
+    ].includes(transaction.status || '');
+
+    console.log(TransactionStatus.SUCCESS.toString(), 'check status');
+
+    if (checkTransactionStatus) {
+      return transaction;
+    }
+
+    if (checkTransactionDate) {
+      return new HttpException(
+        'Cannot check transaction, transaction has passed 90 days',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const requestBody = {
+      username: USERNAME,
+      buyer_sku_code: transaction.buyer_sku_code,
+      customer_no: transaction.customer_no,
+      ref_id: ref_id,
+      sign: transaction.sign,
+    };
+
+    const response = await httpAgentPost(
+      requestBody,
+      'https://api.digiflazz.com/v1/transaction',
+    );
+
+    const update = await this.prisma.transactionHistory.update({
+      where: { ref_id },
+      data: { status: response.data.data.status },
+    });
+
+    return update;
   }
 
   async preTransaction(transactionData: any, ref_id: string, apiKey: string) {
@@ -245,6 +333,7 @@ export class TransactionService {
     const bill: Bill = {
       itemPrice: sellerPrice[0].price,
       userBalance,
+      profit: sellerPrice[0].price - currentPrice.price,
     };
 
     return bill;

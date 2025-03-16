@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { CustomerService } from 'src/customer/customer.service';
+import { OwnerService } from 'src/owner/owner.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TransactionController } from '../transaction/transaction.controller';
 import { TransactionProcessor } from '../transaction/transaction.processor';
@@ -30,6 +31,7 @@ import { TransactionService } from '../transaction/transaction.service';
     TransactionProcessor,
     PrismaService,
     CustomerService,
+    OwnerService,
   ],
 })
 export class QueueModule {}

@@ -61,12 +61,12 @@ async function main() {
     });
   }
 
-  console.log('Seeding completed successfully!');
+  console.log('Seeding PRODUCT completed successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error('Error during seeding:', e);
+    console.error('Error during seeding PRODUCT:', e);
     process.exit(1);
   })
   .finally(async () => {
