@@ -7,12 +7,15 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
+import { Roles } from '@prisma/client';
+import { UserRoles } from 'src/auth/roles.decorator';
 import { TransactionService } from './transaction.service';
 
 @Controller('transactions')
 export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post()
   async createTransaction(@Body() transactionData: any, @Req() req: any) {
     const apiKey = req.headers['api-key'];
@@ -22,7 +25,7 @@ export class TransactionController {
       apiKey || '',
     );
   }
-
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/status')
   @HttpCode(200)
   async getPaymentTransactionStatus(@Body() transactionData: any) {
@@ -30,17 +33,17 @@ export class TransactionController {
       transactionData.ref_id,
     );
   }
-
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Get('/:id')
   async getJobTransactionStatus(@Param('id') id: string) {
     return this.transactionService.getJobTransactionStatus(id);
   }
-
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/request')
   async createPaymentTransactionRequest(@Body() transactionData: any) {
     return this.transactionService.requestTransaction(transactionData);
   }
-
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/compare')
   async compareCurrentPrice(@Body() transactionData: any) {
     return this.transactionService.comparePriceAndBalance(
@@ -48,13 +51,14 @@ export class TransactionController {
       transactionData.userBalance,
     );
   }
-
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/get-one')
   async getTxHistory(@Body() transactionData: any) {
     return this.transactionService.getTransactionHistoryById(
       transactionData.ref_id,
     );
   }
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/get')
   async getTxHistories(@Body() transactionData: any) {
     return this.transactionService.getTransactionHistories(

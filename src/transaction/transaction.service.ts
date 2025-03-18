@@ -49,14 +49,16 @@ export class TransactionService {
       return new HttpException(transactionDetail, HttpStatus.BAD_REQUEST);
     }
 
+    const processorName = `processor-${username}`;
+
     const job = await this.transactionQueue.add(
+      processorName,
       {
         ...transactionData,
         ref_id,
         transactionDetail,
       },
       {
-        deduplication: { id: customer_no },
         jobId: ref_id,
         removeOnComplete: true,
         removeOnFail: false,
@@ -66,11 +68,11 @@ export class TransactionService {
           delay: 5000,
         },
         delay: 2000,
-        limiter: {
-          max: 1,
-          duration: 10000,
-          bounceBack: true,
-        },
+        // limiter: {
+        //   max: 100,
+        //   duration: 5000,
+        //   bounceBack: true,
+        // },
       },
     );
 
@@ -294,16 +296,31 @@ export class TransactionService {
       brand: sellerPrice[0].brand,
     };
 
-    const response = await httpAgentPost(
-      requestBody,
-      'https://api.digiflazz.com/v1/price-list',
-    );
+    let currentPrice;
+    try {
+      const response = await httpAgentPost(
+        requestBody,
+        'https://api.digiflazz.com/v1/price-list',
+      );
 
-    const currentPrice = response.data.data.find(
-      (x: any) => x.buyer_sku_code == buyer_sku_code,
-    );
+      const digiflazzPrice = response.data.data.find(
+        (x: any) => x.buyer_sku_code == buyer_sku_code,
+      );
 
-    if (sellerPrice[0].price < currentPrice.price) {
+      currentPrice = digiflazzPrice.price;
+
+      await this.prisma.productPrice.update({
+        where: { id: sellerPrice[0].id },
+        data: {
+          ...sellerPrice[0],
+          actualPrice: currentPrice,
+        },
+      });
+    } catch (_) {
+      currentPrice = sellerPrice[0].actualPrice;
+    }
+
+    if (sellerPrice[0].price < currentPrice) {
       this.logger.debug(`Setup price fo code ${buyer_sku_code} is too low`);
       return `Setup price fo code ${buyer_sku_code} is too low`;
     }
