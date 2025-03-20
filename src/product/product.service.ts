@@ -38,8 +38,14 @@ export class ProductService {
 
   async updateProduct(productData: UpdateProductDto) {
     await this.findProductById(productData.id);
-    const { brand, buyer_sku_code, category, price, product_name } =
-      productData;
+    const {
+      brand,
+      buyer_sku_code,
+      category,
+      price,
+      product_name,
+      actualPrice,
+    } = productData;
 
     const update = await this.prisma.productPrice.update({
       where: {
@@ -51,6 +57,7 @@ export class ProductService {
         category,
         price,
         product_name,
+        actualPrice,
       },
     });
 

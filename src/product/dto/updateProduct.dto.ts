@@ -5,4 +5,5 @@ export interface UpdateProductDto {
   price: number;
   buyer_sku_code: string;
   product_name: string;
+  actualPrice: number;
 }

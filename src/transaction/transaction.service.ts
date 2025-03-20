@@ -45,18 +45,22 @@ export class TransactionService {
       apiKey,
     );
 
+    console.log(transactionDetail, "transaction detail")
+
     if (typeof transactionDetail == 'string') {
       return new HttpException(transactionDetail, HttpStatus.BAD_REQUEST);
     }
 
+    const processorName = `processor-${username}`;
+
     const job = await this.transactionQueue.add(
+      processorName,
       {
         ...transactionData,
         ref_id,
         transactionDetail,
       },
       {
-        deduplication: { id: customer_no },
         jobId: ref_id,
         removeOnComplete: true,
         removeOnFail: false,
@@ -64,12 +68,6 @@ export class TransactionService {
         backoff: {
           type: 'exponential',
           delay: 5000,
-        },
-        delay: 2000,
-        limiter: {
-          max: 1,
-          duration: 10000,
-          bounceBack: true,
         },
       },
     );
@@ -128,10 +126,14 @@ export class TransactionService {
 
     const { bill, customerData } = transactionDetail;
 
-    const deductedBalance = bill.userBalance - bill.itemPrice;
+    const userData = await this.customer.getUserByUsername(username)
 
-    // Deduct user balance temporary
-    await this.customer.updateUserBalance(deductedBalance, username);
+    if(userData[0].balance < bill.itemPrice){
+      this.logger.debug(`Insuficient Balance for user ${username}: balance = ${userData[0].balance} < ${bill.itemPrice}`)
+      return new HttpException('Insuficient Balance', HttpStatus.BAD_REQUEST)
+    } 
+
+    await this.customer.deductUserBalance(bill.itemPrice, username);
 
     try {
       const sign = generateSignature(USERNAME, API_KEY, ref_id);
@@ -160,12 +162,13 @@ export class TransactionService {
       await this.owner.divideOwnerProfit(bill.profit);
 
       console.log('Success Digiflazz Request Transaction', response.data);
+
       return response.data;
     } catch (error) {
       console.log('Error Digiflazz Request Transaction', error.response.data);
 
       // Return deducted balance
-      await this.customer.updateUserBalance(bill.userBalance, username);
+      await this.customer.addUserBalance(bill.itemPrice, username);
       return new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -251,6 +254,7 @@ export class TransactionService {
     const bill = await this.comparePriceAndBalance(
       buyer_sku_code,
       Number(findUser[0].balance),
+      username
     );
 
     if (typeof bill == 'string') {
@@ -273,7 +277,7 @@ export class TransactionService {
     return transactionDetail;
   }
 
-  async comparePriceAndBalance(buyer_sku_code: string, userBalance: number) {
+  async comparePriceAndBalance(buyer_sku_code: string, userBalance: number, username: string) {
     const sellerPrice = await this.prisma.productPrice.findMany({
       where: {
         buyer_sku_code,
@@ -294,16 +298,31 @@ export class TransactionService {
       brand: sellerPrice[0].brand,
     };
 
-    const response = await httpAgentPost(
-      requestBody,
-      'https://api.digiflazz.com/v1/price-list',
-    );
+    let currentPrice;
+    try {
+      const response = await httpAgentPost(
+        requestBody,
+        'https://api.digiflazz.com/v1/price-list',
+      );
 
-    const currentPrice = response.data.data.find(
-      (x: any) => x.buyer_sku_code == buyer_sku_code,
-    );
+      const digiflazzPrice = response.data.data.find(
+        (x: any) => x.buyer_sku_code == buyer_sku_code,
+      );
 
-    if (sellerPrice[0].price < currentPrice.price) {
+      currentPrice = digiflazzPrice.price;
+
+      await this.prisma.productPrice.update({
+        where: { id: sellerPrice[0].id },
+        data: {
+          ...sellerPrice[0],
+          actualPrice: currentPrice,
+        },
+      });
+    } catch (_) {
+      currentPrice = sellerPrice[0].actualPrice;
+    }
+
+    if (sellerPrice[0].price < currentPrice) {
       this.logger.debug(`Setup price fo code ${buyer_sku_code} is too low`);
       return `Setup price fo code ${buyer_sku_code} is too low`;
     }
@@ -317,15 +336,15 @@ export class TransactionService {
 
     const sellerBalance = await checkBalance();
 
-    if (sellerBalance.data < currentPrice.price) {
+    if (sellerBalance.data < currentPrice) {
       this.logger.debug(
-        `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice.price}`,
+        `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice}`,
       );
-      return `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice.price}`;
+      return `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice}`;
     }
 
     this.logger.debug(
-      `Our price ${sellerPrice[0].price} > current price ${currentPrice.price}`,
+      `Our price ${sellerPrice[0].price} > current price ${currentPrice}`,
     );
 
     this.logger.debug(`Current Seller Balance: ${userBalance}`);
@@ -333,7 +352,7 @@ export class TransactionService {
     const bill: Bill = {
       itemPrice: sellerPrice[0].price,
       userBalance,
-      profit: sellerPrice[0].price - currentPrice.price,
+      profit: sellerPrice[0].price - currentPrice,
     };
 
     return bill;

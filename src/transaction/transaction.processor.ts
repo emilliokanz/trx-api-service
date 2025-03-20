@@ -10,7 +10,7 @@ export class TransactionProcessor {
     private readonly transactionHistory: TransactionService, // Inject your service
   ) {}
 
-  @Process()
+  @Process({ name: '*', concurrency: 1 })
   async processTransaction(job: Job<any>) {
     this.logger.debug(`Processing transaction for ref id: ${job.data.ref_id}`);
     console.log('Transaction details to be processed: ', job.data);
@@ -29,6 +29,8 @@ export class TransactionProcessor {
   }
 
   private async executeTransaction(data: any): Promise<void> {
+    // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    // await delay(5000);
     await this.transactionHistory.requestTransaction(data);
   }
 }
