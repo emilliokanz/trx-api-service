@@ -25,4 +25,9 @@ export class CustomerController {
   async reqApiKey(@Body() customerData: any) {
     return this.customerService.generateApiKey(customerData.username);
   }
+
+  @Post('/get-username')
+  async getUserByUsername(@Body() payload: any) {
+    return this.customerService.getUserByUsername(payload.username)
+  }
 }

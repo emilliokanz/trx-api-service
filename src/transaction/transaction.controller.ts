@@ -49,6 +49,7 @@ export class TransactionController {
     return this.transactionService.comparePriceAndBalance(
       transactionData.buyer_sku_code,
       transactionData.userBalance,
+      transactionData.username
     );
   }
   @UserRoles([Roles.Admin, Roles.SuperAdmin])

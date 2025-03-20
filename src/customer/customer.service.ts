@@ -48,6 +48,50 @@ export class CustomerService {
     };
   }
 
+  async deductUserBalance(deduct: number, username: string){
+    const findUser = await this.prisma.customer.findMany({
+      where: { username },
+    });
+
+    if (!findUser) {
+      return new HttpException('User not found', HttpStatus.BAD_REQUEST);
+    }
+
+    const updateUser = await this.prisma.customer.update({
+      where: { id: findUser[0].id },
+      data: {
+        balance: {decrement: deduct},
+      },
+    });
+
+    return {
+      message: 'updated',
+      data: updateUser,
+    };
+  }
+
+  async addUserBalance(add: number, username: string){
+    const findUser = await this.prisma.customer.findMany({
+      where: { username },
+    });
+
+    if (!findUser) {
+      return new HttpException('User not found', HttpStatus.BAD_REQUEST);
+    }
+
+    const updateUser = await this.prisma.customer.update({
+      where: { id: findUser[0].id },
+      data: {
+        balance: {increment: add},
+      },
+    });
+
+    return {
+      message: 'updated',
+      data: updateUser,
+    };
+  }
+
   async getUserByUsername(username: string) {
     const findUser = await this.prisma.customer.findMany({
       where: { username },
