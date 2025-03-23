@@ -12,6 +12,7 @@ export class TransactionProcessor {
 
   @Process({ name: '*', concurrency: 1 })
   async processTransaction(job: Job<any>) {
+    console.log(job.name, `called here`)
     this.logger.debug(`Processing transaction for ref id: ${job.data.ref_id}`);
     console.log('Transaction details to be processed: ', job.data);
 

@@ -86,6 +86,20 @@ export class OwnerService {
     return null;
   }
 
+  async decrementOwnerProfit(profit: number) {
+    if ((await this.findTotalOwner()) > 0) {
+      const update = await this.prisma.owner.updateMany({
+        data: {
+          balance: { decrement: profit / (await this.findTotalOwner())},
+        },
+      });
+
+      return update;
+    }
+
+    return null;
+  }
+
   async findTotalOwner() {
     const totalData = await this.prisma.owner.count();
     return totalData;
