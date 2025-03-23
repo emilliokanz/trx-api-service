@@ -34,14 +34,18 @@ export class TransactionService {
   ) {}
 
   async addTransaction(transactionData: any, apiKey: string): Promise<any> {
-    const { customer_no, username } = transactionData;
+    const { customer_no, username, ref_id } = transactionData;
 
-    const ref_id = generateReferenceId();
+
+    let _ref_id = ref_id != undefined ? ref_id : generateReferenceId()
+
+    console.log(_ref_id, "ref id value")
+
 
     // queue job only if it meets preTransaction requirements
     const transactionDetail = await this.preTransaction(
       transactionData,
-      ref_id,
+      _ref_id,
       apiKey,
     );
 
@@ -57,11 +61,11 @@ export class TransactionService {
       processorName,
       {
         ...transactionData,
-        ref_id,
+        ref_id: _ref_id,
         transactionDetail,
       },
       {
-        jobId: ref_id,
+        jobId: _ref_id,
         removeOnComplete: true,
         removeOnFail: false,
         attempts: 3,
@@ -146,10 +150,10 @@ export class TransactionService {
         sign: sign,
       };
 
-      const response = await httpAgentPost(
-        requestBody,
-        'https://api.digiflazz.com/v1/transaction',
-      );
+      // const response = await httpAgentPost(
+      //   requestBody,
+      //   'https://api.digiflazz.com/v1/transaction',
+      // );
 
       await this.prisma.transactionHistory.create({
         data: {
@@ -159,11 +163,13 @@ export class TransactionService {
         },
       });
 
-      await this.owner.divideOwnerProfit(bill.profit);
 
-      console.log('Success Digiflazz Request Transaction', response.data);
+      // console.log('Success Digiflazz Request Transaction', response.data);
 
-      return response.data;
+      // await this.getPaymentTransactionStatus(ref_id)
+      return {message: 'success'}
+
+      // return response.data;
     } catch (error) {
       console.log('Error Digiflazz Request Transaction', error.response.data);
 
@@ -174,7 +180,6 @@ export class TransactionService {
   }
 
   async getPaymentTransactionStatus(ref_id: string) {
-    console.log(ref_id, 'ref id');
     const transaction = await this.prisma.transactionHistory.findUnique({
       where: { ref_id },
     });
@@ -191,8 +196,6 @@ export class TransactionService {
       TransactionStatus.FAILED.toString(),
       TransactionStatus.INDETERMINATE.toString(),
     ].includes(transaction.status || '');
-
-    console.log(TransactionStatus.SUCCESS.toString(), 'check status');
 
     if (checkTransactionStatus) {
       return transaction;
@@ -218,10 +221,22 @@ export class TransactionService {
       'https://api.digiflazz.com/v1/transaction',
     );
 
+    const trxStatus = response.data.data.status
+    
     const update = await this.prisma.transactionHistory.update({
       where: { ref_id },
-      data: { status: response.data.data.status },
+      data: { status: trxStatus },
     });
+
+    if(trxStatus == TransactionStatus.SUCCESS.toString()){
+      const profit = await this.owner.divideOwnerProfit(update.profit || 0);
+      console.log("Received Profit", profit)
+    }
+
+    if(trxStatus == TransactionStatus.FAILED.toString()){
+      const noProfit = await this.owner.decrementOwnerProfit(update.profit || 0);
+      console.log("Revert Profit", noProfit)
+    }
 
     return update;
   }
@@ -386,5 +401,3 @@ async function httpAgentPost(requestBody: any, url: string) {
 
   return response;
 }
-
-async function divideProfit() {}

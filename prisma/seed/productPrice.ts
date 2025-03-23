@@ -53,6 +53,13 @@ async function main() {
       buyer_sku_code: 'ml3',
       product_name: '',
     },
+    {
+      brand: 'PUBG MOBILE',
+      category: 'GAMES',
+      price: 13772,
+      buyer_sku_code: '60-uc',
+      product_name: '',
+    },
   ];
 
   for (const productPrice of productPrices) {
