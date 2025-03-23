@@ -24,7 +24,6 @@
     "@bull-board/api": "^6.7.10",
     "@bull-board/fastify": "^6.7.10",
     "@bull-board/nestjs": "^6.7.10",
-    "@nestjs/bull": "^11.0.2",
     "@nestjs/bullmq": "^11.0.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",

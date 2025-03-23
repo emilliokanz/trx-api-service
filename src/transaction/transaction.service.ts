@@ -151,10 +151,10 @@ export class TransactionService {
         sign: sign,
       };
 
-      const response = await httpAgentPost(
-        requestBody,
-        'https://api.digiflazz.com/v1/transaction',
-      );
+      // const response = await httpAgentPost(
+      //   requestBody,
+      //   'https://api.digiflazz.com/v1/transaction',
+      // );
 
       await this.prisma.transactionHistory.create({
         data: {
@@ -166,8 +166,9 @@ export class TransactionService {
 
       await this.owner.divideOwnerProfit(bill.profit);
 
-      console.log('Success Digiflazz Request Transaction', response.data);
-      return response.data;
+      // console.log('Success Digiflazz Request Transaction', response.data);
+      return { message: 'success' };
+      // return response.data;
     } catch (error) {
       console.log('Error Digiflazz Request Transaction', error.response.data);
 
