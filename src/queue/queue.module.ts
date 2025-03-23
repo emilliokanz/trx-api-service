@@ -1,7 +1,10 @@
-import { BullModule } from '@nestjs/bull';
+import { BullBoardModule } from '@bull-board/nestjs';
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { CustomerService } from 'src/customer/customer.service';
 import { OwnerService } from 'src/owner/owner.service';
+
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TransactionController } from '../transaction/transaction.controller';
 import { TransactionProcessor } from '../transaction/transaction.processor';
@@ -10,7 +13,7 @@ import { TransactionService } from '../transaction/transaction.service';
 @Module({
   imports: [
     BullModule.forRoot({
-      redis: {
+      connection: {
         host: 'localhost',
         port: 6379,
         password: 'your_secure_password',
@@ -23,6 +26,10 @@ import { TransactionService } from '../transaction/transaction.service';
         removeOnComplete: false,
         removeOnFail: false,
       },
+    }),
+    BullBoardModule.forFeature({
+      name: 'userTransactions', // Register the queue with Bull Board
+      adapter: BullMQAdapter,
     }),
   ],
   controllers: [TransactionController],

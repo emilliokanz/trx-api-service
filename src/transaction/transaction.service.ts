@@ -1,8 +1,8 @@
-import { InjectQueue } from '@nestjs/bull';
+import { InjectQueue } from '@nestjs/bullmq';
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as bcrypt from 'bcrypt';
-import { Queue } from 'bull';
+import { Queue } from 'bullmq';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { CustomerService } from 'src/customer/customer.service';
 import PaginationIface from 'src/interface/paginationIface';
@@ -36,9 +36,10 @@ export class TransactionService {
   async addTransaction(transactionData: any, apiKey: string): Promise<any> {
     const { customer_no, username } = transactionData;
 
+    transactionData['apiKey'] = apiKey;
+
     const ref_id = generateReferenceId();
 
-    // queue job only if it meets preTransaction requirements
     const transactionDetail = await this.preTransaction(
       transactionData,
       ref_id,
@@ -49,6 +50,8 @@ export class TransactionService {
       return new HttpException(transactionDetail, HttpStatus.BAD_REQUEST);
     }
 
+    // queue job only if it meets preTransaction requirements
+
     const processorName = `processor-${username}`;
 
     const job = await this.transactionQueue.add(
@@ -56,7 +59,6 @@ export class TransactionService {
       {
         ...transactionData,
         ref_id,
-        transactionDetail,
       },
       {
         jobId: ref_id,
@@ -67,12 +69,7 @@ export class TransactionService {
           type: 'exponential',
           delay: 5000,
         },
-        delay: 2000,
-        // limiter: {
-        //   max: 100,
-        //   duration: 5000,
-        //   bounceBack: true,
-        // },
+        delay: 3000,
       },
     );
 
@@ -125,15 +122,23 @@ export class TransactionService {
   }
 
   async requestTransaction(transactionData: TransactionRequest) {
-    const { buyer_sku_code, customer_no, ref_id, transactionDetail, username } =
+    const { buyer_sku_code, customer_no, ref_id, username, apiKey } =
       transactionData;
+
+    const transactionDetail = await this.preTransaction(
+      transactionData,
+      ref_id,
+      apiKey,
+    );
+
+    if (typeof transactionDetail == 'string') {
+      return new HttpException(transactionDetail, HttpStatus.BAD_REQUEST);
+    }
 
     const { bill, customerData } = transactionDetail;
 
-    const deductedBalance = bill.userBalance - bill.itemPrice;
-
     // Deduct user balance temporary
-    await this.customer.updateUserBalance(deductedBalance, username);
+    await this.customer.decrementBalance(bill.itemPrice, username);
 
     try {
       const sign = generateSignature(USERNAME, API_KEY, ref_id);
@@ -167,7 +172,7 @@ export class TransactionService {
       console.log('Error Digiflazz Request Transaction', error.response.data);
 
       // Return deducted balance
-      await this.customer.updateUserBalance(bill.userBalance, username);
+      await this.customer.incrementBalance(bill.userBalance, username);
       return new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -308,6 +313,7 @@ export class TransactionService {
       );
 
       currentPrice = digiflazzPrice.price;
+      console.log(currentPrice, 'response value');
 
       await this.prisma.productPrice.update({
         where: { id: sellerPrice[0].id },
@@ -334,15 +340,15 @@ export class TransactionService {
 
     const sellerBalance = await checkBalance();
 
-    if (sellerBalance.data < currentPrice.price) {
+    if (sellerBalance.data < currentPrice) {
       this.logger.debug(
-        `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice.price}`,
+        `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice}`,
       );
-      return `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice.price}`;
+      return `Sellers's balance ${sellerBalance} is too low for product price ${currentPrice}`;
     }
 
     this.logger.debug(
-      `Our price ${sellerPrice[0].price} > current price ${currentPrice.price}`,
+      `Our price ${sellerPrice[0].price} > current price ${currentPrice}`,
     );
 
     this.logger.debug(`Current Seller Balance: ${userBalance}`);
@@ -350,7 +356,7 @@ export class TransactionService {
     const bill: Bill = {
       itemPrice: sellerPrice[0].price,
       userBalance,
-      profit: sellerPrice[0].price - currentPrice.price,
+      profit: sellerPrice[0].price - currentPrice,
     };
 
     return bill;

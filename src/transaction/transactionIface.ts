@@ -6,6 +6,7 @@ export interface TransactionRequest {
   username: string;
   ref_id: string;
   transactionDetail: TransactionDetail;
+  apiKey: string;
 }
 
 export interface TransactionDetail {
@@ -24,4 +25,9 @@ export enum TransactionStatus {
   SUCCESS = 'Sukses',
   FAILED = 'Gagal',
   INDETERMINATE = 'Indeterminate',
+}
+
+export interface TransactionJobData {
+  userId: string;
+  transactionData: any;
 }

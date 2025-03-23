@@ -48,6 +48,50 @@ export class CustomerService {
     };
   }
 
+  async decrementBalance(itemPrice: number, username: string) {
+    const findUser = await this.prisma.customer.findMany({
+      where: { username },
+    });
+
+    if (!findUser) {
+      return new HttpException('User not found', HttpStatus.BAD_REQUEST);
+    }
+
+    const updateUser = await this.prisma.customer.update({
+      where: { id: findUser[0].id },
+      data: {
+        balance: { decrement: itemPrice },
+      },
+    });
+
+    return {
+      message: 'updated',
+      data: updateUser,
+    };
+  }
+
+  async incrementBalance(itemPrice: number, username: string) {
+    const findUser = await this.prisma.customer.findMany({
+      where: { username },
+    });
+
+    if (!findUser) {
+      return new HttpException('User not found', HttpStatus.BAD_REQUEST);
+    }
+
+    const updateUser = await this.prisma.customer.update({
+      where: { id: findUser[0].id },
+      data: {
+        balance: { increment: itemPrice },
+      },
+    });
+
+    return {
+      message: 'updated',
+      data: updateUser,
+    };
+  }
+
   async getUserByUsername(username: string) {
     const findUser = await this.prisma.customer.findMany({
       where: { username },
