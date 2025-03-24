@@ -33,9 +33,9 @@ export class TransactionProcessor extends WorkerHost {
   }
 
   private async executeTransaction(data: any): Promise<void> {
-    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    await delay(5000);
-    // await this.transactionService.requestTransaction(data);
+    // await delay(5000);
+    await this.transactionService.requestTransaction(data);
   }
 }
