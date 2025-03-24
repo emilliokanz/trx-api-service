@@ -10,7 +10,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   
     const extendedClient = new PrismaClient().$extends(
       createUserTrackingExtension(() => {
-        return this.request.user?.id
+        return {id: this.request.user?.id, role: this.request.user?.role}
       })
     )
 

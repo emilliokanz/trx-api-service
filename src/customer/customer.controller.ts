@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
 import { CustomerService } from './customer.service';
@@ -30,8 +30,17 @@ export class CustomerController {
 
   @UseGuards(AuthGuard)
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
+  @HttpCode(200)
   @Post('/get-username')
   async getUserByUsername(@Body() payload: any) {
     return this.customerService.getUserByUsername(payload.username)
+  }
+
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
+  @HttpCode(200)
+  @Post('/get')
+  async getUsers(@Body() payload: any) {
+    return this.customerService.getAllUser(payload.page, payload.take)
   }
 }

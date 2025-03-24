@@ -1,11 +1,12 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import PaginationIface from 'src/interface/paginationIface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import hash from 'src/utils/hash';
 import * as uuid from 'uuid';
 
 @Injectable()
 export class CustomerService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async addUser(username: string) {
     const findUser = await this.prisma.customer.findMany({
@@ -48,7 +49,7 @@ export class CustomerService {
     };
   }
 
-  async deductUserBalance(deduct: number, username: string){
+  async deductUserBalance(deduct: number, username: string) {
     const findUser = await this.prisma.customer.findMany({
       where: { username },
     });
@@ -60,7 +61,7 @@ export class CustomerService {
     const updateUser = await this.prisma.customer.update({
       where: { id: findUser[0].id },
       data: {
-        balance: {decrement: deduct},
+        balance: { decrement: deduct },
       },
     });
 
@@ -70,7 +71,7 @@ export class CustomerService {
     };
   }
 
-  async addUserBalance(add: number, username: string){
+  async addUserBalance(add: number, username: string) {
     const findUser = await this.prisma.customer.findMany({
       where: { username },
     });
@@ -82,7 +83,7 @@ export class CustomerService {
     const updateUser = await this.prisma.customer.update({
       where: { id: findUser[0].id },
       data: {
-        balance: {increment: add},
+        balance: { increment: add },
       },
     });
 
@@ -100,6 +101,24 @@ export class CustomerService {
     return findUser;
   }
 
+
+  async getAllUser(page: number, take: number) {
+    const data = await this.prisma.customer.findMany({
+      skip: page - 1,
+      take
+    });
+
+    const totalData = await this.prisma.customer.count();
+
+    const paginationData: PaginationIface = {
+      data,
+      totalData,
+      page,
+      pageLength: Math.ceil(totalData / take),
+    };
+
+    return paginationData;
+  }
   async generateApiKey(username: string) {
     const findUser = await this.prisma.customer.findMany({
       where: { username },
