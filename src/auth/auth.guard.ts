@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  HttpStatus,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
+
     if (!token) {
       throw new UnauthorizedException();
     }
@@ -30,8 +32,6 @@ export class AuthGuard implements CanActivate {
       if (!payload) {
         throw new UnauthorizedException();
       }
-      // 💡 We're assigning the payload to the request object here
-      // so that we can access it in our route handlers
 
       const requiredRoles = this.reflector.getAllAndOverride<Roles[]>(
         ROLES_KEY,
@@ -40,17 +40,20 @@ export class AuthGuard implements CanActivate {
       if (!requiredRoles) {
         return true;
       }
-      const { user } = context.switchToHttp().getRequest();
-      return requiredRoles.includes(user.roles);
-    } catch {
-      throw new UnauthorizedException();
+      const { role } = payload;
+
+      request.user = payload;
+
+      return requiredRoles.includes(role);
+    } catch(e: any) {
+      throw new UnauthorizedException({message: e.message, statusCode: HttpStatus.UNAUTHORIZED});
     }
   }
 
   private extractTokenFromHeader(
     request: Request & { headers: { authorization?: string } },
   ): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
+    const token = request.headers.authorization ?? undefined;
+    return token
   }
 }

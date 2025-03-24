@@ -6,6 +6,10 @@ import { CustomerModule } from './customer/customer.module';
 import { OwnerModule } from './owner/owner.module';
 import { ProductModule } from './product/product.modue';
 import { QueueModule } from './queue/queue.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { BullBoardModule } from '@bull-board/nestjs';
+import { FastifyAdapter } from '@bull-board/fastify';
+
 
 @Module({
   imports: [
@@ -14,6 +18,11 @@ import { QueueModule } from './queue/queue.module';
     OwnerModule,
     ProductModule,
     AuthModule,
+    PrismaModule,
+    BullBoardModule.forRoot({
+      route: '/queues', // Base route for the dashboard
+      adapter: FastifyAdapter, // Or FastifyAdapter
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],
