@@ -3,10 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { TransactionService } from './transaction.service';
 
-@Processor('userTransactions', { concurrency: 1 , limiter: {
-  max: 10,
-  duration: 1000
-}})
+@Processor('userTransactions', { concurrency: 1})
 export class TransactionProcessor extends WorkerHost {
   private readonly logger = new Logger(TransactionProcessor.name);
   constructor(

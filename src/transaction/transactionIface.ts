@@ -23,5 +23,4 @@ export enum TransactionStatus {
   PENDING = 'Pending',
   SUCCESS = 'Sukses',
   FAILED = 'Gagal',
-  INDETERMINATE = 'Indeterminate',
 }
