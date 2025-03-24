@@ -16,8 +16,8 @@ model TransactionHistory {
   customer_id    Int?
   status         String?
   profit         Int?
-  createdBy      User?     @relation(fields: [userId], references: [id])
-  userId         Int?
+  user           User?     @relation(fields: [createdBy], references: [id])
+  createdBy      Int?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
   customer       Customer? @relation(fields: [customer_id], references: [id])
@@ -28,8 +28,8 @@ model Customer {
   username           String
   balance            Int
   apiKey             String
-  createdBy          User?                @relation(fields: [userId], references: [id])
-  userId             Int?
+  user               User?                @relation(fields: [createdBy], references: [id])
+  createdBy          Int?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @default(now()) @updatedAt
   TransactionHistory TransactionHistory[]
@@ -43,8 +43,8 @@ model ProductPrice {
   actualPrice    Int?
   buyer_sku_code String
   product_name   String
-  createdBy      User?    @relation(fields: [userId], references: [id])
-  userId         Int?
+  user           User?    @relation(fields: [createdBy], references: [id])
+  createdBy      Int?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
 }
@@ -53,8 +53,8 @@ model Owner {
   id        Int      @id @default(autoincrement())
   name      String
   balance   Int
-  createdBy User?    @relation(fields: [userId], references: [id])
-  userId    Int?
+  user      User?    @relation(fields: [createdBy], references: [id])
+  createdBy Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 }

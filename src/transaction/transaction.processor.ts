@@ -1,18 +1,21 @@
-import { Process, Processor } from '@nestjs/bull';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bull';
+import { Job } from 'bullmq';
 import { TransactionService } from './transaction.service';
 
-@Processor('userTransactions')
-export class TransactionProcessor {
+@Processor('userTransactions', { concurrency: 1 , limiter: {
+  max: 10,
+  duration: 1000
+}})
+export class TransactionProcessor extends WorkerHost {
   private readonly logger = new Logger(TransactionProcessor.name);
   constructor(
-    private readonly transactionHistory: TransactionService, // Inject your service
-  ) {}
+    private readonly transactionService: TransactionService, // Inject TransactionService
+  ) {
+    super();
+  }
 
-  @Process({ name: '*', concurrency: 1 })
-  async processTransaction(job: Job<any>) {
-    console.log(job.name, `called here`)
+  async process(job: Job<any>) {
     this.logger.debug(`Processing transaction for ref id: ${job.data.ref_id}`);
     console.log('Transaction details to be processed: ', job.data);
 
@@ -30,8 +33,9 @@ export class TransactionProcessor {
   }
 
   private async executeTransaction(data: any): Promise<void> {
-    // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    // await delay(5000);
-    await this.transactionHistory.requestTransaction(data);
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    await delay(5000);
+    // await this.transactionService.requestTransaction(data);
   }
 }

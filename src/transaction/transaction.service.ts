@@ -1,8 +1,8 @@
-import { InjectQueue } from '@nestjs/bull';
+import { InjectQueue } from '@nestjs/bullmq';
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as bcrypt from 'bcrypt';
-import { Queue } from 'bull';
+import { Queue } from 'bullmq';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { CustomerService } from 'src/customer/customer.service';
 import PaginationIface from 'src/interface/paginationIface';
@@ -39,9 +39,6 @@ export class TransactionService {
 
     let _ref_id = ref_id != undefined ? ref_id : generateReferenceId()
 
-    console.log(_ref_id, "ref id value")
-
-
     // queue job only if it meets preTransaction requirements
     const transactionDetail = await this.preTransaction(
       transactionData,
@@ -66,8 +63,6 @@ export class TransactionService {
       },
       {
         jobId: _ref_id,
-        removeOnComplete: true,
-        removeOnFail: false,
         attempts: 3,
         backoff: {
           type: 'exponential',
@@ -160,6 +155,7 @@ export class TransactionService {
           ...requestBody,
           profit: bill.profit,
           customer_id: customerData.id,
+          createdBy: customerData.createdBy
         },
       });
 
@@ -167,9 +163,10 @@ export class TransactionService {
       // console.log('Success Digiflazz Request Transaction', response.data);
 
       // await this.getPaymentTransactionStatus(ref_id)
-      return {message: 'success'}
 
       // return response.data;
+      return {message: 'message'}
+
     } catch (error) {
       console.log('Error Digiflazz Request Transaction', error.response.data);
 
@@ -230,12 +227,12 @@ export class TransactionService {
 
     if(trxStatus == TransactionStatus.SUCCESS.toString()){
       const profit = await this.owner.divideOwnerProfit(update.profit || 0);
-      console.log("Received Profit", profit)
+      this.logger.debug("Received Profit", profit)
     }
 
     if(trxStatus == TransactionStatus.FAILED.toString()){
       const noProfit = await this.owner.decrementOwnerProfit(update.profit || 0);
-      console.log("Revert Profit", noProfit)
+      this.logger.debug("Revert Profit", noProfit)
     }
 
     return update;
