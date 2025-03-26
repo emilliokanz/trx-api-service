@@ -32,9 +32,11 @@ export class CustomerService {
       where: { username },
     });
 
-    if (!findUser) {
+    if (findUser.length == 0) {
       return new HttpException('User not found', HttpStatus.BAD_REQUEST);
     }
+
+    console.log(findUser, 'find user')
 
     const updateUser = await this.prisma.customer.update({
       where: { id: findUser[0].id },

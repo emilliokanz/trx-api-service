@@ -155,7 +155,9 @@ export class TransactionService {
           ...requestBody,
           profit: bill.profit,
           customer_id: customerData.id,
-          createdBy: customerData.createdBy
+          createdBy: customerData.createdBy,
+          item_price: bill.itemPrice,
+          customer_username: username
         },
       });
 
@@ -190,7 +192,6 @@ export class TransactionService {
     const checkTransactionStatus = [
       TransactionStatus.SUCCESS.toString(),
       TransactionStatus.FAILED.toString(),
-      TransactionStatus.INDETERMINATE.toString(),
     ].includes(transaction.status || '');
 
     if (checkTransactionStatus) {
@@ -230,8 +231,7 @@ export class TransactionService {
     }
 
     if(trxStatus == TransactionStatus.FAILED.toString()){
-      const noProfit = await this.owner.decrementOwnerProfit(update.profit || 0);
-      this.logger.debug("Revert Profit", noProfit)
+      await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
     }
 
     return update;
@@ -334,7 +334,7 @@ export class TransactionService {
     }
 
     if (sellerPrice[0].price < currentPrice) {
-      this.logger.debug(`Setup price fo code ${buyer_sku_code} is too low`);
+      this.logger.debug(`Setup price for code ${buyer_sku_code} is too low`);
       return `Setup price fo code ${buyer_sku_code} is too low`;
     }
 

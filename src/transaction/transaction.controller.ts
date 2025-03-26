@@ -6,10 +6,12 @@ import {
   Param,
   Post,
   Req,
+  UseGuards
 } from '@nestjs/common';
 import { Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
 import { TransactionService } from './transaction.service';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @Controller('transactions')
 export class TransactionController {
@@ -33,16 +35,19 @@ export class TransactionController {
       transactionData.ref_id,
     );
   }
+
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Get('/:id')
   async getJobTransactionStatus(@Param('id') id: string) {
     return this.transactionService.getJobTransactionStatus(id);
   }
+
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/request')
   async createPaymentTransactionRequest(@Body() transactionData: any) {
     return this.transactionService.requestTransaction(transactionData);
   }
+  
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/compare')
   async compareCurrentPrice(@Body() transactionData: any) {
@@ -52,14 +57,19 @@ export class TransactionController {
       transactionData.username
     );
   }
+  @UseGuards(AuthGuard)
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
+  @HttpCode(200)
   @Post('/get-one')
   async getTxHistory(@Body() transactionData: any) {
     return this.transactionService.getTransactionHistoryById(
       transactionData.ref_id,
     );
   }
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])
+
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @HttpCode(200)
   @Post('/get')
   async getTxHistories(@Body() transactionData: any) {
     return this.transactionService.getTransactionHistories(
