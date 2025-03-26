@@ -8,34 +8,34 @@ datasource db {
 }
 
 model TransactionHistory {
-  ref_id         String    @id
-  username       String
-  buyer_sku_code String
-  customer_no    String
-  sign           String
-  customer_id    Int?
-  status         String?
+  ref_id            String    @id
+  username          String
+  buyer_sku_code    String
+  customer_no       String
+  sign              String
+  customer_id       Int?
+  status            String?
   customer_username String?
-  item_price     Int?
-  profit         Int?
-  user           User?     @relation(fields: [createdBy], references: [id])
-  createdBy      Int?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @default(now()) @updatedAt
-  customer       Customer? @relation(fields: [customer_id], references: [id])
+  item_price        Int?
+  profit            Int?
+  user              User?     @relation(fields: [createdBy], references: [id])
+  createdBy         Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  customer          Customer? @relation(fields: [customer_id], references: [id])
 }
 
 model Customer {
-  id                 Int                  @id @default(autoincrement())
-  username           String
-  balance            Int
-  apiKey             String
-  user               User?                @relation(fields: [createdBy], references: [id])
-  createdBy          Int?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @default(now()) @updatedAt
-  
-  TransactionHistory TransactionHistory[]
+  id        Int      @id @default(autoincrement())
+  username  String
+  balance   Int
+  apiKey    String
+  user      User?    @relation(fields: [createdBy], references: [id])
+  createdBy Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  TransactionHistory     TransactionHistory[]
   CustomerBalanceHistory CustomerBalanceHistory[]
 }
 
@@ -79,17 +79,18 @@ model User {
 }
 
 model CustomerBalanceHistory {
-  id        Int      @id @default(autoincrement())
-  name      String
-  username  String
-  type      BalanceTransactionType
+  id         Int                    @id @default(autoincrement())
+  name       String
+  username   String
+  type       CustomerBalanceType
   bf_balance Int
   af_balance Int
-  amount  Int
-  Customer      Customer?    @relation(fields: [customerId], references: [id])
+  amount     Int
+  ref_id     String?
+  Customer   Customer?              @relation(fields: [customerId], references: [id])
   customerId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @default(now()) @updatedAt
 }
 
 enum Roles {
@@ -97,7 +98,8 @@ enum Roles {
   SuperAdmin
 }
 
-enum BalanceTransactionType {
+enum CustomerBalanceType {
   Withdrawal
   Deposit
+  Transaction
 }
