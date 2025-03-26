@@ -366573,3 +366573,8 @@ $13
 *1
 $4
 EXEC
+*2
+$3
+DEL
+$35
+bull:userTransactions:stalled-check
