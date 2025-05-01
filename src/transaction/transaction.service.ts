@@ -2,6 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as bcrypt from 'bcrypt';
+import * as xlsx from 'xlsx';
 import { Queue } from 'bullmq';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { CustomerService } from 'src/customer/customer.service';
@@ -16,24 +17,37 @@ import {
   TransactionRequest,
   TransactionStatus,
 } from './transactionIface';
+import { TransactionRequestDto } from './dto/transaction.dto';
+import { BalanceHistoryService } from 'src/balanceHistory/balanceHistory.service';
+import { generateItemkuHeader } from 'src/utils/generateItemkuHeader';
+import { ItemkuOrder, ProductPrice } from '@prisma/client';
+import { getMlPlayerId } from 'src/utils/mobileLegends/getPlayerId';
+import { ProductService } from 'src/product/product.service';
+import { GameItemDto } from './dto/gameItem.dto';
+import { TelegramLib } from 'src/lib/telegram';
 
-const USERNAME = 'beyuziDVABxo';
-const API_KEY = '50938246-642e-5e7e-8ee2-33cafc35294b';
-const PROXY_URL =
-  'http://yxYf9w6f1zc2w0g:vmwgdVPeVPOxQsy@185.235.71.237:49224/';
+const USERNAME = process.env.DIGI_USERNAME ?? '';
+const API_KEY = process.env.DIGI_API_KEY ?? '';
+const PROXY_URL = process.env.DIGI_PROXY_URL ?? '';
+const ITEMKU_API_KEY = process.env.ITEMKU_API_KEY ?? '';
 
 @Injectable()
 export class TransactionService {
   private readonly logger = new Logger(TransactionService.name);
+  telegramLib: TelegramLib;
 
   constructor(
     @InjectQueue('userTransactions') private readonly transactionQueue: Queue,
     private prisma: PrismaService,
     private customer: CustomerService,
     private owner: OwnerService,
-  ) {}
+    private balance: BalanceHistoryService,
+    private product: ProductService
+  ) {
+    this.telegramLib = new TelegramLib();
+  }
 
-  async addTransaction(transactionData: any, apiKey: string): Promise<any> {
+  async addTransaction(transactionData: TransactionRequestDto, apiKey: string): Promise<any> {
     const { customer_no, username, ref_id } = transactionData;
 
 
@@ -114,6 +128,9 @@ export class TransactionService {
   async getTransactionHistoryById(ref_id: string) {
     const data = await this.prisma.transactionHistory.findUnique({
       where: { ref_id },
+      include: {
+        customer: true
+      }
     });
 
     return data;
@@ -127,10 +144,10 @@ export class TransactionService {
 
     const userData = await this.customer.getUserByUsername(username)
 
-    if(userData[0].balance < bill.itemPrice){
+    if (userData[0].balance < bill.itemPrice) {
       this.logger.debug(`Insuficient Balance for user ${username}: balance = ${userData[0].balance} < ${bill.itemPrice}`)
       return new HttpException('Insuficient Balance', HttpStatus.BAD_REQUEST)
-    } 
+    }
 
     await this.customer.deductUserBalance(bill.itemPrice, username);
 
@@ -169,7 +186,13 @@ export class TransactionService {
       return response.data;
 
     } catch (error) {
-      console.log('Error Digiflazz Request Transaction', error.response.data);
+      if(error.response.data.data){
+        await this.telegramLib.sendMessage(error.response.data.data, 'FAILED')
+        console.log('Error Digiflazz Request Transaction', error.response.data.data);
+      } else {
+        await this.telegramLib.sendMessage(error.message.toString(), 'FAILED')
+        console.log('Error processing transaction', error.message)
+      }
 
       // Return deducted balance
       await this.customer.addUserBalance(bill.itemPrice, username);
@@ -178,9 +201,7 @@ export class TransactionService {
   }
 
   async getPaymentTransactionStatus(ref_id: string) {
-    const transaction = await this.prisma.transactionHistory.findUnique({
-      where: { ref_id },
-    });
+    const transaction = await this.getTransactionHistoryById(ref_id)
 
     if (!transaction) {
       return new HttpException('Transaction not found', HttpStatus.BAD_REQUEST);
@@ -219,18 +240,29 @@ export class TransactionService {
     );
 
     const trxStatus = response.data.data.status
-    
+
     const update = await this.prisma.transactionHistory.update({
       where: { ref_id },
       data: { status: trxStatus },
     });
 
-    if(trxStatus == TransactionStatus.SUCCESS.toString()){
+    if (trxStatus == TransactionStatus.SUCCESS.toString()) {
       const profit = await this.owner.divideOwnerProfit(update.profit || 0);
+      const updateUserBalance = await this.balance.createBalanceHistory({
+        username: transaction.customer_username ?? '',
+        af_balance: transaction.customer?.balance ?? 0,
+        bf_balance: (transaction.customer?.balance ?? 0) + (transaction.item_price ?? 0),
+        amount: transaction.item_price ?? 0,
+        customerId: transaction.customer?.id ?? 0,
+        name: transaction.customer?.name ?? '',
+        ref_id,
+        type: 'Transaction'
+      })
       this.logger.debug("Received Profit", profit)
+      console.debug("Update customer balance", updateUserBalance)
     }
 
-    if(trxStatus == TransactionStatus.FAILED.toString()){
+    if (trxStatus == TransactionStatus.FAILED.toString()) {
       await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
     }
 
@@ -368,8 +400,362 @@ export class TransactionService {
 
     return bill;
   }
-}
 
+  async getItemkuOrderList() {
+    const today = new Date().toISOString().split('T')[0];
+    const payload = {
+      date_start: today,
+      order_status: 'REQUIRE_PROCESS',
+      limit: 30
+    };
+    const { authToken, nonce } = generateItemkuHeader(payload)
+    const apiUrl = 'https://tokoku-gateway.itemku.com/api/order/list';
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'X-Api-Key': ITEMKU_API_KEY,
+        'Nonce': nonce,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const orders = response.data.data
+
+    if (orders.length > 0) {
+      orders.forEach(async (x: ItemkuOrder) => {
+        if (x.game_name === 'Mobile Legends') {
+          console.log('Processing Order', x)
+          await this.updateItemkuOrderStatus(x)
+        }
+      })
+    } else {
+      this.logger.debug('No new order found')
+    }
+
+
+    return response.data.data
+  }
+
+  async updateItemkuOrderStatus(orderData: ItemkuOrder) {
+
+    const product = await this.getProductByItemKu(orderData.game_name, orderData.product_name)
+
+    if (!product) {
+      return null
+    }
+
+    const itemkuOrder = await this.prisma.itemkuOrder.findUnique({
+      where: {
+        order_id: orderData.order_id
+      }
+    })
+
+    if (itemkuOrder) {
+      this.logger.debug(`order id ${orderData.order_id}, already existed`)
+      return null
+    }
+
+    const payload = {
+      order_id: orderData.order_id,
+      action: "DELIVER",
+    };
+
+    const { authToken, nonce } = generateItemkuHeader(payload)
+    const apiUrl = 'https://tokoku-gateway.itemku.com/api/order/action'; // Ganti dengan URL endpoint Anda
+
+    try {
+      const updateOrder = await axios.post(apiUrl, payload, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'X-Api-Key': ITEMKU_API_KEY,
+          'Nonce': nonce,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log(updateOrder)
+
+      const jsonString = orderData.required_information?.toString().replace(/(\w+):/g, '"$1":');
+
+      // Then parse it into a JavaScript object
+      const jsonObject = JSON.parse(`{ "required_information": ${jsonString} }`);
+
+      const updateHistory = await this.prisma.itemkuOrder.upsert({
+        create: {
+          ...orderData,
+          status: 'DELIVER',
+          required_information: jsonObject
+        },
+        update: {
+          status: 'DELIVER'
+        },
+        where: {
+          order_id: orderData.order_id
+        }
+      })
+
+      console.log(updateHistory, "updating itemku order")
+
+      this.logger.debug('getting ml player id history')
+
+      const customer_no = getMlPlayerId(jsonObject)
+
+      this.logger.debug('processing transaction')
+
+      // Loop transaction based on quantity ammount
+      for (let i = 0; i < orderData.quantity; i++) {
+        const ref_id = generateReferenceId();
+        await this.processTransaction(ref_id, product.buyer_sku_code, customer_no ?? '', orderData.order_id);
+      }
+
+    } catch (e: any) {
+      this.logger.debug(e.message)
+    }
+  }
+
+  async getProductByItemKu(gameName: string, productName: string) {
+    const product = await this.prisma.productPrice.findMany({
+      where: {
+        ItemkuProduct: {
+          item_name: productName,
+          game_name: gameName
+        }
+      }
+    })
+
+    if (product.length === 0) {
+      this.logger.error(`Searching product with game name: ${gameName} and product name: ${productName} not found`)
+      return null
+    } else {
+      return product[0]
+    }
+  }
+
+  async getDigiflazzPrice() {
+    const sign = generateSignature(USERNAME, API_KEY, 'pricelist');
+
+
+    const requestBody = {
+      cmd: 'prepaid',
+      username: USERNAME,
+      sign: sign,
+      category: 'GAMES',
+      brand: 'MOBILE LEGEND',
+    };
+
+    try {
+      const response = await httpAgentPost(
+        requestBody,
+        'https://api.digiflazz.com/v1/price-list',
+      );
+
+      // update product list 
+      await this.product.updateProductDigiflazz(response.data.data)
+
+      return response.data.data
+
+    } catch (e: any) {
+      this.logger.debug(`error getting digiflazz price: ${e.message}`)
+    }
+  }
+
+  async getItemkuPrice() {
+
+    const { authToken, nonce } = generateItemkuHeader('')
+    const apiUrl = 'https://tokoku-gateway.itemku.com/api/product/list';
+    const response = await axios.post(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'X-Api-Key': ITEMKU_API_KEY,
+        'Nonce': nonce,
+        'Content-Type': 'application/json'
+      }
+    })
+    console.log(response.data.data)
+
+    const orders = response.data.data
+  }
+
+  async processTransaction(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number) {
+    try {
+      const sign = generateSignature(USERNAME, API_KEY, ref_id);
+
+      const requestBody = {
+        username: USERNAME,
+        buyer_sku_code: buyer_sku_code,
+        customer_no: customer_no,
+        ref_id: ref_id,
+        sign: sign,
+      };
+
+      const response = await httpAgentPost(
+        requestBody,
+        'https://api.digiflazz.com/v1/transaction',
+      );
+
+      await this.prisma.transactionHistory.create({
+        data: {
+          ...requestBody,
+          profit: 0,
+          customer_id: null,
+          createdBy: null,
+          item_price: 0,
+          customer_username: '',
+          source: 'ITEMKU',
+          order_id
+        },
+      });
+
+
+      console.log('Success Digiflazz Request Transaction', response.data);
+
+      await this.getPaymentTransactionStatus(ref_id)
+    } catch (e: any) {
+      console.log('Error Digiflazz Request Transaction', e.response.data);
+    }
+  }
+
+  async parseItemkuExcel(filePath: string) {
+    const workbook = xlsx.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    // Convert sheet data to JSON
+    const rawData: any = xlsx.utils.sheet_to_json(worksheet);
+    const gameItems: GameItemDto[] = [];
+
+    for (const row of rawData) {
+      try {
+        // Extract and map Excel columns to DTO properties
+        const gameItemData: GameItemDto = {
+          gameName: row['Nama Game'] || '',
+          idItem: row['ID Item'] || '',
+          serverName: row['Server Name'] || '',
+          groupName: row['Grup Name'] || '',
+          itemName: row['Nama Item'] || '',
+          stock: parseInt(row['Stok'] || '0'),
+          minOrder: parseInt(row['Min. Pesanan'] || '1'),
+          price: parseInt(row['Harga'] || '0')
+        };
+
+        gameItems.push(gameItemData);
+
+
+      } catch (error) {
+        console.error(`Error processing row: ${JSON.stringify(row)}`);
+        console.error(error);
+      }
+    }
+
+    const products = await this.prisma.productPrice.findMany({
+      where: {
+        brand: 'MOBILE LEGENDS'
+      }
+    })
+
+    const updateProducts: ProductPrice[] = await this.compareAndUpdateProductPrice(products, gameItems)
+
+
+
+    return updateProducts;
+  }
+
+  async compareAndUpdateProductPrice(products: ProductPrice[], itemkuProducts: GameItemDto[]): Promise<ProductPrice[]> {
+    const updatedProducts: any = [];
+
+    // First update all itemkuProducts in parallel
+    await Promise.all(itemkuProducts.map(async (item) => {
+      await this.prisma.itemkuProduct.upsert({
+        create: {
+          item_id: item.idItem,
+          game_name: item.gameName,
+          group_name: item.groupName,
+          min_order: item.minOrder,
+          price: item.price,
+          server_name: item.serverName,
+          stock: item.stock,
+          item_name: item.itemName
+        },
+        update: {
+          game_name: item.gameName,
+          group_name: item.groupName,
+          min_order: item.minOrder,
+          price: item.price,
+          server_name: item.serverName,
+          stock: item.stock,
+          item_name: item.itemName
+        },
+        where: {
+          item_id: item.idItem
+        }
+      });
+    }));
+
+    // Process products sequentially to avoid race conditions
+    for (const product of products) {
+      const productNameParts = product.product_name.split(' - ');
+      if (productNameParts.length < 2) continue;
+
+      const gameName = productNameParts[0].trim();
+      const productValue = productNameParts[1].trim();
+
+      // Find matching itemku product (synchronously)
+      const matchingItem = itemkuProducts.find((item) => {
+        const normalizedItemName = item.itemName.toLowerCase();
+        const normalizedProductValue = productValue.toLowerCase();
+
+        const itemText = normalizedItemName.replace(/\d+/g, '').trim();
+        const productText = normalizedProductValue.replace(/\d+/g, '').trim();
+
+        const itemNumbers: string[] = normalizedItemName.match(/\d+/g) || [];
+        const productNumbers: string[] = normalizedProductValue.match(/\d+/g) || [];
+
+        const hasMatchingNumber = productNumbers.some(pNum =>
+          itemNumbers.includes(pNum)
+        );
+
+        return hasMatchingNumber &&
+          item.groupName === 'Diamond' &&
+          (itemText.includes(productText) || productText.includes(itemText));
+      });
+
+      if (matchingItem) {
+        try {
+          // Update product price with itemku product reference
+          const updatedProduct = await this.prisma.productPrice.update({
+            where: { id: product.id },
+            data: {
+              ItemkuProduct: {
+                connect: {
+                  item_id: matchingItem.idItem
+                }
+              }
+            },
+            include: {
+              ItemkuProduct: true
+            }
+          });
+
+          // Update itemku product with product reference
+          await this.prisma.itemkuProduct.update({
+            where: {
+              item_id: matchingItem.idItem
+            },
+            data: {
+              product_id: product.id
+            }
+          });
+
+          updatedProducts.push(updatedProduct);
+        } catch (error) {
+          console.error(`Failed to update product ${product.id}:`, error);
+        }
+      }
+    }
+
+    return updatedProducts;
+  }
+}
 async function checkBalance() {
   const sign = generateSignature(USERNAME, API_KEY, 'depo');
   const requestBody = {
@@ -397,3 +783,4 @@ async function httpAgentPost(requestBody: any, url: string) {
 
   return response;
 }
+

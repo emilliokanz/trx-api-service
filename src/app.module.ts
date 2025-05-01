@@ -9,6 +9,7 @@ import { QueueModule } from './queue/queue.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { FastifyAdapter } from '@bull-board/fastify';
+import { BalanceHistoryModule } from './balanceHistory/balanceHistory.module';
 
 
 @Module({
@@ -19,6 +20,7 @@ import { FastifyAdapter } from '@bull-board/fastify';
     ProductModule,
     AuthModule,
     PrismaModule,
+    BalanceHistoryModule,
     BullBoardModule.forRoot({
       route: '/queues', // Base route for the dashboard
       adapter: FastifyAdapter, // Or FastifyAdapter
