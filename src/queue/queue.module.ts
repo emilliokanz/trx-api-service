@@ -8,6 +8,10 @@ import { TransactionProcessor } from '../transaction/transaction.processor';
 import { TransactionService } from '../transaction/transaction.service';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { BalanceHistoryService } from 'src/balanceHistory/balanceHistory.service';
+import { SchedulerService } from 'src/scheduler/scheduler.service';
+import { SchedulerProcessor } from 'src/scheduler/scheduler.processor';
+import { ProductService } from 'src/product/product.service';
 
 
 @Module({
@@ -21,15 +25,26 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
     }),
     BullModule.registerQueue({
       name: 'userTransactions',
-      // Setting this option prevents the queue from processing multiple jobs at once
       defaultJobOptions: {
         delay: 1000,
         removeOnComplete: false,
         removeOnFail: false,
       },
     }),
+    BullModule.registerQueue({
+      name: 'scheduledJobs',
+      defaultJobOptions: {
+        delay: 1000,
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    }),
     BullBoardModule.forFeature({
-      name: 'userTransactions', // Register the queue with Bull Board
+      name: 'userTransactions', 
+      adapter: BullMQAdapter,
+    }),
+    BullBoardModule.forFeature({
+      name: 'scheduledJobs',
       adapter: BullMQAdapter,
     }),
   ],
@@ -37,9 +52,17 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
   providers: [
     TransactionService,
     TransactionProcessor,
+    SchedulerService,
+    SchedulerProcessor,
     PrismaService,
     CustomerService,
     OwnerService,
-  ],
+    BalanceHistoryService,
+    ProductService
+  ], exports: [
+    BullModule,
+    PrismaService, TransactionService, OwnerService, BalanceHistoryService,
+     CustomerService
+  ]
 })
 export class QueueModule {}

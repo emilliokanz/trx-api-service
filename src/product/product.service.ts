@@ -3,6 +3,10 @@ import PaginationIface from 'src/interface/paginationIface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateProductDto } from './dto/createProduct.dto';
 import { UpdateProductDto } from './dto/updateProduct.dto';
+import { Cron } from '@nestjs/schedule';
+import { TransactionService } from 'src/transaction/transaction.service';
+import { ProductPrice } from '@prisma/client';
+import { UpdateItemkuProduct } from './dto/updateItemkuToProduct.dto';
 
 @Injectable()
 export class ProductService {
@@ -104,5 +108,35 @@ export class ProductService {
     };
 
     return paginationData;
+  
+  
+  }
+
+  async updateProductDigiflazz(productData: ProductPrice[]){
+    productData.forEach(async (p) => {
+      await this.prisma.productPrice.upsert({
+        create: {
+          brand: p.brand,
+          buyer_sku_code: p.buyer_sku_code,
+          category: p.category,
+          price: p.price,
+          product_name: p.product_name
+        },
+        update: {
+          brand: p.brand,
+          buyer_sku_code: p.buyer_sku_code,
+          category: p.category,
+          price: p.price,
+          product_name: p.product_name
+        },
+        where: {
+          buyer_sku_code: p.buyer_sku_code
+        }
+      })
+    })
+  }
+
+  async updateProductItemku(itemkuProduct: UpdateItemkuProduct){
+    
   }
 }

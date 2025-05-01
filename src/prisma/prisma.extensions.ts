@@ -27,6 +27,7 @@ export function createUserTrackingExtension(getCurrentUser: () => { id: any, rol
 
                     return query(args)
                 },
+                
 
                 async findMany({ args, query, model }) {
                     const { id, role } = getCurrentUser();

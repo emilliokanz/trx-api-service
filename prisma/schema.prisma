@@ -8,7 +8,7 @@ datasource db {
 }
 
 model TransactionHistory {
-  ref_id            String    @id
+  ref_id            String       @id
   username          String
   buyer_sku_code    String
   customer_no       String
@@ -16,20 +16,25 @@ model TransactionHistory {
   customer_id       Int?
   status            String?
   customer_username String?
+  source            String?
   item_price        Int?
   profit            Int?
-  user              User?     @relation(fields: [createdBy], references: [id])
+  user              User?        @relation(fields: [createdBy], references: [id])
   createdBy         Int?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
-  customer          Customer? @relation(fields: [customer_id], references: [id])
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @default(now()) @updatedAt
+  customer          Customer?    @relation(fields: [customer_id], references: [id])
+  order             ItemkuOrder? @relation(fields: [order_id], references: [order_id]) // Optional relation 
+  order_id          Int?
 }
 
 model Customer {
   id        Int      @id @default(autoincrement())
+  name      String?
   username  String
   balance   Int
   apiKey    String
+  password  String?
   user      User?    @relation(fields: [createdBy], references: [id])
   createdBy Int?
   createdAt DateTime @default(now())
@@ -40,17 +45,18 @@ model Customer {
 }
 
 model ProductPrice {
-  id             Int      @id @default(autoincrement())
-  brand          String
-  category       String
-  price          Int
-  actualPrice    Int?
-  buyer_sku_code String
-  product_name   String
-  user           User?    @relation(fields: [createdBy], references: [id])
-  createdBy      Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
+  id                  Int      @id @default(autoincrement())
+  brand               String
+  category            String
+  price               Int
+  actualPrice         Int?
+  buyer_sku_code      String   @unique
+  product_name        String
+  user                User?    @relation(fields: [createdBy], references: [id])
+  createdBy           Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+  ItemkuProduct ItemkuProduct? 
 }
 
 model Owner {
@@ -76,10 +82,11 @@ model User {
   TransactionHistory TransactionHistory[]
   Customer           Customer[]
   ProductPrice       ProductPrice[]
+  ItemkuProduct      ItemkuProduct[]
 }
 
 model CustomerBalanceHistory {
-  id         Int                    @id @default(autoincrement())
+  id         Int                 @id @default(autoincrement())
   name       String
   username   String
   type       CustomerBalanceType
@@ -87,15 +94,54 @@ model CustomerBalanceHistory {
   af_balance Int
   amount     Int
   ref_id     String?
-  Customer   Customer?              @relation(fields: [customerId], references: [id])
+  Customer   Customer?           @relation(fields: [customerId], references: [id])
   customerId Int
-  createdAt  DateTime               @default(now())
-  updatedAt  DateTime               @default(now()) @updatedAt
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @default(now()) @updatedAt
+}
+
+model ItemkuOrder {
+  order_id             Int                  @id @unique // The unique order ID (138841391)
+  order_number         String               @unique // The unique order number ('OD000000138841391')
+  product_id           Int // The product ID (1355967)
+  price                Int // The price of the product (1800)
+  quantity             Int // Quantity (1)
+  game_name            String // The game name ('Mobile Legends')
+  product_name         String // The product name ('5 Diamonds')
+  using_delivery_info  Int                  @default(0) // Whether delivery info is used (0 or 1)
+  delivery_info_field  String? // Delivery info field, if present (nullable)
+  status               String // The status of the order ('REQUIRE_PROCESS')
+  required_information Json // The required information (JSON: '{"player_id":"478396496","zone_id":"2457","username":"tarou"}')
+  delivery_info        String? // The delivery info, if any (nullable)
+  order_income         Int // The income from the order (1710)
+  is_from_ads          Boolean              @default(false) // Whether the order came from ads (false)
+  transactionHistory   TransactionHistory[]
+
+  createdAt DateTime @default(now()) // Timestamps for order creation
+  updatedAt DateTime @updatedAt // Timestamps for last update
+}
+
+model ItemkuProduct {
+  item_id     Int           @id @unique
+  game_name   String
+  item_name   String
+  server_name String
+  group_name  String
+  stock       Int
+  min_order   Int
+  price       Int
+  product_id  Int? @unique
+  product     ProductPrice? @relation(fields: [product_id], references: [id])
+  user        User?         @relation(fields: [createdBy], references: [id])
+  createdBy   Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
 }
 
 enum Roles {
   Admin
   SuperAdmin
+  Customer
 }
 
 enum CustomerBalanceType {
