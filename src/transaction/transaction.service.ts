@@ -26,11 +26,6 @@ import { ProductService } from 'src/product/product.service';
 import { GameItemDto } from './dto/gameItem.dto';
 import { TelegramLib } from 'src/lib/telegram';
 
-const USERNAME = process.env.DIGI_USERNAME ?? '';
-const API_KEY = process.env.DIGI_API_KEY ?? '';
-const PROXY_URL = process.env.DIGI_PROXY_URL ?? '';
-const ITEMKU_API_KEY = process.env.ITEMKU_API_KEY ?? '';
-
 @Injectable()
 export class TransactionService {
   private readonly logger = new Logger(TransactionService.name);
@@ -152,10 +147,10 @@ export class TransactionService {
     await this.customer.deductUserBalance(bill.itemPrice, username);
 
     try {
-      const sign = generateSignature(USERNAME, API_KEY, ref_id);
+      const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', ref_id);
 
       const requestBody = {
-        username: USERNAME,
+        username: process.env.DIGI_USERNAME ?? '',
         buyer_sku_code: buyer_sku_code,
         customer_no: customer_no,
         ref_id: ref_id,
@@ -227,7 +222,7 @@ export class TransactionService {
     }
 
     const requestBody = {
-      username: USERNAME,
+      username: process.env.DIGI_USERNAME ?? '',
       buyer_sku_code: transaction.buyer_sku_code,
       customer_no: transaction.customer_no,
       ref_id: ref_id,
@@ -331,11 +326,11 @@ export class TransactionService {
       return 'Product not found';
     }
 
-    const sign = generateSignature(USERNAME, API_KEY, 'pricelist');
+    const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', 'pricelist');
 
     const requestBody = {
       cmd: 'prepaid',
-      username: USERNAME,
+      username: process.env.DIGI_USERNAME ?? '',
       sign: sign,
       category: sellerPrice[0].category,
       brand: sellerPrice[0].brand,
@@ -413,7 +408,7 @@ export class TransactionService {
     const response = await axios.post(apiUrl, payload, {
       headers: {
         Authorization: `Bearer ${authToken}`,
-        'X-Api-Key': ITEMKU_API_KEY,
+        'X-Api-Key': process.env.ITEMKU_API_KEY ?? '',
         'Nonce': nonce,
         'Content-Type': 'application/json'
       }
@@ -421,11 +416,15 @@ export class TransactionService {
 
     const orders = response.data.data
 
+    console.log("Pending Orders", orders)
+
     if (orders.length > 0) {
       orders.forEach(async (x: ItemkuOrder) => {
         if (x.game_name === 'Mobile Legends') {
           console.log('Processing Order', x)
           await this.updateItemkuOrderStatus(x)
+        } else {
+          console.log('No new Mobile Legends order found')
         }
       })
     } else {
@@ -467,7 +466,7 @@ export class TransactionService {
       const updateOrder = await axios.post(apiUrl, payload, {
         headers: {
           Authorization: `Bearer ${authToken}`,
-          'X-Api-Key': ITEMKU_API_KEY,
+          'X-Api-Key': process.env.ITEMKU_API_KEY ?? '',
           'Nonce': nonce,
           'Content-Type': 'application/json'
         }
@@ -532,12 +531,12 @@ export class TransactionService {
   }
 
   async getDigiflazzPrice() {
-    const sign = generateSignature(USERNAME, API_KEY, 'pricelist');
+    const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', 'pricelist');
 
 
     const requestBody = {
       cmd: 'prepaid',
-      username: USERNAME,
+      username: process.env.DIGI_USERNAME ?? '',
       sign: sign,
       category: 'GAMES',
       brand: 'MOBILE LEGEND',
@@ -566,7 +565,7 @@ export class TransactionService {
     const response = await axios.post(apiUrl, {
       headers: {
         Authorization: `Bearer ${authToken}`,
-        'X-Api-Key': ITEMKU_API_KEY,
+        'X-Api-Key': process.env.ITEMKU_API_KEY ?? '',
         'Nonce': nonce,
         'Content-Type': 'application/json'
       }
@@ -578,10 +577,10 @@ export class TransactionService {
 
   async processTransaction(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number) {
     try {
-      const sign = generateSignature(USERNAME, API_KEY, ref_id);
+      const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', ref_id);
 
       const requestBody = {
-        username: USERNAME,
+        username: process.env.DIGI_USERNAME ?? '',
         buyer_sku_code: buyer_sku_code,
         customer_no: customer_no,
         ref_id: ref_id,
@@ -757,10 +756,10 @@ export class TransactionService {
   }
 }
 async function checkBalance() {
-  const sign = generateSignature(USERNAME, API_KEY, 'depo');
+  const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', 'depo');
   const requestBody = {
     cmd: 'deposit',
-    username: USERNAME,
+    username: process.env.DIGI_USERNAME ?? '',
     sign,
   };
   const response = await httpAgentPost(
@@ -772,7 +771,7 @@ async function checkBalance() {
 }
 
 async function httpAgentPost(requestBody: any, url: string) {
-  const agent = new HttpsProxyAgent(PROXY_URL);
+  const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
 
   const response = await axios.post(url, requestBody, {
     httpsAgent: agent,
