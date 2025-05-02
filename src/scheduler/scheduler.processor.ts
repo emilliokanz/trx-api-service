@@ -14,13 +14,13 @@ export class SchedulerProcessor extends WorkerHost {
 
   async process(job: Job<any>) {
     this.logger.debug(`Check for new Order Lists`);
-    console.log('Transaction details to be processed: ', job.data);
 
     try {
       await this.executeTransaction(job.data);
       this.logger.debug(`Succesfully checked Order List`);
       return { success: true };
     } catch (error) {
+      console.log(error)
         this.logger.error(`Failed checking Order List`);
       throw error;
     }
@@ -30,6 +30,6 @@ export class SchedulerProcessor extends WorkerHost {
     // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     // await delay(5000);
-    // await this.transactionService.getItemkuOrderList();
+    await this.transactionService.getItemkuOrderList();
   }
 }
