@@ -21,7 +21,7 @@ import { TransactionRequestDto } from './dto/transaction.dto';
 import { BalanceHistoryService } from 'src/balanceHistory/balanceHistory.service';
 import { generateItemkuHeader } from 'src/utils/generateItemkuHeader';
 import { ItemkuOrder, ProductPrice } from '@prisma/client';
-import { getMlPlayerId } from 'src/utils/mobileLegends/getPlayerId';
+import { getGarenaPlayerId, getMlPlayerId } from 'src/utils/mobileLegends/getPlayerId';
 import { ProductService } from 'src/product/product.service';
 import { GameItemDto } from './dto/gameItem.dto';
 import { TelegramLib } from 'src/lib/telegram';
@@ -420,12 +420,12 @@ export class TransactionService {
 
     if (orders.length > 0) {
       orders.forEach(async (x: ItemkuOrder) => {
-        if (x.game_name === 'Mobile Legends') {
-          console.log('Processing Order', x)
-          await this.updateItemkuOrderStatus(x)
-        } else {
-          console.log('No new Mobile Legends order found')
-        }
+          if(x.game_name === "Garena Free Fire" || x.game_name === "Garena Free Fire MAX" || x.game_name === 'Mobile Legends'){
+            console.log('Processing Order', x)
+            await this.updateItemkuOrderStatus(x)
+          } else {
+            console.log('No new Mobile Legends or Free Fire order found')
+          }
       })
     } else {
       this.logger.debug('No new order found')
@@ -436,7 +436,7 @@ export class TransactionService {
   }
 
   async updateItemkuOrderStatus(orderData: ItemkuOrder) {
-
+    let customer_no: string | null = ''
     const product = await this.getProductByItemKu(orderData.game_name, orderData.product_name)
 
     if (!product) {
@@ -475,15 +475,24 @@ export class TransactionService {
       console.log(updateOrder)
 
       const jsonString = orderData.required_information?.toString().replace(/(\w+):/g, '"$1":');
+      const requiredInformation = JSON.parse(`{ "required_information": ${jsonString} }`);  
 
-      // Then parse it into a JavaScript object
-      const jsonObject = JSON.parse(`{ "required_information": ${jsonString} }`);
+
+      if(orderData.game_name === "Mobile Legends"){
+        this.logger.debug('getting ml player id history')
+        customer_no = getMlPlayerId(requiredInformation)
+      }
+
+      if(orderData.game_name === "Garena Free Fire" || orderData.game_name === "Garena Free Fire MAX"){
+        this.logger.debug(`getting ${orderData.game_name} ml player id history`)
+        customer_no = getGarenaPlayerId(requiredInformation)
+      }
 
       const updateHistory = await this.prisma.itemkuOrder.upsert({
         create: {
           ...orderData,
           status: 'DELIVER',
-          required_information: jsonObject
+          required_information: requiredInformation
         },
         update: {
           status: 'DELIVER'
@@ -494,10 +503,6 @@ export class TransactionService {
       })
 
       console.log(updateHistory, "updating itemku order")
-
-      this.logger.debug('getting ml player id history')
-
-      const customer_no = getMlPlayerId(jsonObject)
 
       this.logger.debug('processing transaction')
 
@@ -646,6 +651,7 @@ export class TransactionService {
       }
     }
 
+    
     const products = await this.prisma.productPrice.findMany({
       where: {
         brand: 'MOBILE LEGENDS'

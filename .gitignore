@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+/postgres_data
+/redis_data
+
 # Logs
 logs
 *.log
