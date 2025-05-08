@@ -123,13 +123,14 @@ export class TransactionService {
   async getTransactionHistoryById(ref_id: string) {
     const data = await this.prisma.transactionHistory.findUnique({
       where: { ref_id },
-      include: {
-        customer: true
-      }
+      // include: {
+      //   customer: true
+      // }
     });
 
     return data;
   }
+  
 
   async requestTransaction(transactionData: TransactionRequest) {
     const { buyer_sku_code, customer_no, ref_id, transactionDetail, username } =
@@ -242,24 +243,24 @@ export class TransactionService {
     });
 
     if (trxStatus == TransactionStatus.SUCCESS.toString()) {
-      const profit = await this.owner.divideOwnerProfit(update.profit || 0);
-      const updateUserBalance = await this.balance.createBalanceHistory({
-        username: transaction.customer_username ?? '',
-        af_balance: transaction.customer?.balance ?? 0,
-        bf_balance: (transaction.customer?.balance ?? 0) + (transaction.item_price ?? 0),
-        amount: transaction.item_price ?? 0,
-        customerId: transaction.customer?.id ?? 0,
-        name: transaction.customer?.name ?? '',
-        ref_id,
-        type: 'Transaction'
-      })
-      this.logger.debug("Received Profit", profit)
-      console.debug("Update customer balance", updateUserBalance)
+      // const profit = await this.owner.divideOwnerProfit(update.profit || 0);
+      // const updateUserBalance = await this.balance.createBalanceHistory({
+      //   username: transaction.customer_username ?? '',
+      //   af_balance: transaction.customer?.balance ?? 0,
+      //   bf_balance: (transaction.customer?.balance ?? 0) + (transaction.item_price ?? 0),
+      //   amount: transaction.item_price ?? 0,
+      //   customerId: transaction.customer?.id ?? 0,
+      //   name: transaction.customer?.name ?? '',
+      //   ref_id,
+      //   type: 'Transaction'
+      // })
+      // this.logger.debug("Received Profit", profit)
+      // console.debug("Update customer balance", updateUserBalance)
     }
 
-    if (trxStatus == TransactionStatus.FAILED.toString()) {
-      await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
-    }
+    // if (trxStatus == TransactionStatus.FAILED.toString()) {
+    //   await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
+    // }
 
     return update;
   }
@@ -488,9 +489,25 @@ export class TransactionService {
         customer_no = getGarenaPlayerId(requiredInformation)
       }
 
+
+      const mapOrderData = {
+        order_id: orderData.order_id,
+        order_number: orderData.order_number,
+        product_id: orderData.product_id,
+        price: orderData.price,
+        quantity: orderData.quantity,
+        game_name: orderData.game_name,
+        product_name: orderData.product_name,
+        using_delivery_info: orderData.using_delivery_info,
+        delivery_info: orderData.delivery_info,
+        order_income: orderData.order_income,
+        is_from_ads: orderData.is_from_ads,
+        delivery_info_field: orderData.delivery_info_field
+      }
+
       const updateHistory = await this.prisma.itemkuOrder.upsert({
         create: {
-          ...orderData,
+          ...mapOrderData,
           status: 'DELIVER',
           required_information: requiredInformation
         },
@@ -509,7 +526,7 @@ export class TransactionService {
       // Loop transaction based on quantity ammount
       for (let i = 0; i < orderData.quantity; i++) {
         const ref_id = generateReferenceId();
-        await this.processTransaction(ref_id, product.buyer_sku_code, customer_no ?? '', orderData.order_id);
+        await this.processTransaction(ref_id, product.buyer_sku_code, customer_no ?? '', orderData.order_id, orderData);
       }
 
     } catch (e: any) {
@@ -580,7 +597,7 @@ export class TransactionService {
     const orders = response.data.data
   }
 
-  async processTransaction(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number) {
+  async processTransaction(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number, itemkuOrder: ItemkuOrder) {
     try {
       const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', ref_id);
 
@@ -614,8 +631,15 @@ export class TransactionService {
       console.log('Success Digiflazz Request Transaction', response.data);
 
       await this.getPaymentTransactionStatus(ref_id)
-    } catch (e: any) {
-      console.log('Error Digiflazz Request Transaction', e.response.data);
+    } catch (error: any) {
+      if(error.response.data.data){
+        await this.telegramLib.sendMessage(error.response.data.data, 'FAILED ITEMKU', itemkuOrder)
+        console.log('Error Digiflazz Request Transaction', error.response.data.data);
+      } else {
+        await this.telegramLib.sendMessage(error.message.toString(), 'FAILED ITEMKU', itemkuOrder)
+        console.log('Error processing transaction', error.message)
+      }
+      console.log('Error Digiflazz Request Transaction', error.response.data);
     }
   }
 
