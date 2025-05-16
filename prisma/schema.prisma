@@ -45,18 +45,19 @@ model Customer {
 }
 
 model ProductPrice {
-  id                  Int      @id @default(autoincrement())
-  brand               String
-  category            String
-  price               Int
-  actualPrice         Int?
-  buyer_sku_code      String   @unique
-  product_name        String
-  user                User?    @relation(fields: [createdBy], references: [id])
-  createdBy           Int?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @default(now()) @updatedAt
-  ItemkuProduct ItemkuProduct[] 
+  id                      Int                       @id @default(autoincrement())
+  brand                   String
+  category                String
+  price                   Int
+  actualPrice             Int?
+  buyer_sku_code          String                    @unique
+  product_name            String
+  user                    User?                     @relation(fields: [createdBy], references: [id])
+  createdBy               Int?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @default(now()) @updatedAt
+  ItemkuProduct           ItemkuProduct[]
+  ItemkuToProductJunction ItemkuToProductJunction[]
 }
 
 model Owner {
@@ -122,20 +123,30 @@ model ItemkuOrder {
 }
 
 model ItemkuProduct {
-  item_id     Int           @id @unique
-  game_name   String
-  item_name   String
-  server_name String
-  group_name  String
-  stock       Int
-  min_order   Int
-  price       Int
-  product_id  Int?
-  product     ProductPrice? @relation(fields: [product_id], references: [id])
-  user        User?         @relation(fields: [createdBy], references: [id])
-  createdBy   Int?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @default(now()) @updatedAt
+  item_id                 Int                       @id @unique
+  game_name               String
+  item_name               String
+  server_name             String
+  group_name              String
+  stock                   Int
+  min_order               Int
+  price                   Int
+  product_id              Int?
+  product                 ProductPrice?             @relation(fields: [product_id], references: [id])
+  user                    User?                     @relation(fields: [createdBy], references: [id])
+  createdBy               Int?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @default(now()) @updatedAt
+  ItemkuToProductJunction ItemkuToProductJunction[]
+}
+
+model ItemkuToProductJunction {
+  id            Int            @id @default(autoincrement())
+  product_id    Int
+  product       ProductPrice?  @relation(fields: [product_id], references: [id])
+  item_id       Int
+  itemkuProduct ItemkuProduct? @relation(fields: [item_id], references: [item_id])
+  qty           Int
 }
 
 enum Roles {

@@ -12,7 +12,7 @@ import {
   UseGuards,
   UseInterceptors
 } from '@nestjs/common';
-import { Roles } from '@prisma/client';
+import { ItemkuOrder, Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
 import { TransactionService } from './transaction.service';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -99,6 +99,16 @@ export class TransactionController {
     return this.transactionService.getItemkuPrice()
   }
 
+  @Post('/get-supplier-product')
+  async getSupplierProduct(@Body() data: any ){
+    return this.transactionService.getProductByItemKu(data.gameName, data.productName)
+  }
+
+  @Post('/batch-connect-product')
+  async batchConnectProduct(@Body() data: any ){
+    return this.transactionService.batchConnectProductsToItemku(data.itemId, data.productInfo)
+  }
+
   @Post('/itemku/product/upload')
   async uploadFile(@Req() req: any): Promise<any> {
     try {
@@ -143,5 +153,10 @@ export class TransactionController {
         error.status || HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  }
+
+  @Post('/mock-order-itemku')
+  async mockItemkuOrder(@Body() data : ItemkuOrder){
+    return this.transactionService.mockUpdateItemkuOrderStatus(data)
   }
 }
