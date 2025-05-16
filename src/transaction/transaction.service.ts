@@ -538,8 +538,10 @@ export class TransactionService {
     const product = await this.prisma.productPrice.findMany({
       where: {
         ItemkuProduct: {
-          item_name: productName,
-          game_name: gameName
+          every: {
+            item_name: productName,
+            game_name: gameName
+          }
         }
       }
     })
