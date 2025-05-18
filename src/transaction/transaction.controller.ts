@@ -86,6 +86,7 @@ export class TransactionController {
     return this.transactionService.getTransactionHistories(
       transactionData.page,
       transactionData.take,
+      transactionData.status
     );
   }
 
