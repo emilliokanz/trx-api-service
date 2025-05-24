@@ -12,7 +12,7 @@ import {
   UseGuards,
   UseInterceptors
 } from '@nestjs/common';
-import { Roles } from '@prisma/client';
+import { ItemkuOrder, Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
 import { TransactionService } from './transaction.service';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -45,6 +45,13 @@ export class TransactionController {
     return this.transactionService.getPaymentTransactionStatus(
       transactionData.ref_id,
     );
+  }
+
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
+  @Post('/update-all-status')
+  @HttpCode(200)
+  async updateAllStatus() {
+    return this.transactionService.updateAllTxTStatus();
   }
 
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
@@ -86,10 +93,43 @@ export class TransactionController {
     return this.transactionService.getTransactionHistories(
       transactionData.page,
       transactionData.take,
-      transactionData.status
+      transactionData.status,
+      transactionData.source
     );
   }
 
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @HttpCode(200)
+  @Post('/get-itemku-history')
+  async getItemkuTxHistories(@Body() transactionData: any) {
+    return this.transactionService.getItemkuOrderHistory(
+      transactionData.page,
+      transactionData.take,
+      transactionData.status,
+    );
+  }
+
+  @Post('/mock-order-itemku')
+  async mockItemkuOrder(@Body() data : ItemkuOrder){
+    return this.transactionService.updateItemkuOrderStatus(data)
+  }
+
+  @Post('/update-order-itemku')
+  async updateItemkuOrder(@Body() data : ItemkuOrder){
+    return this.transactionService.updateItemkuOrderStatus(data)
+  }
+
+  @Post('/bulk-update-tx')
+  async bulkUpdatetx(){
+    return this.transactionService.bulkUpdateItemkuOrderStatus()
+  }
+
+  @Post('/manual-update-tx')
+  async manualUpdatetx(@Body() data : any){
+    return this.transactionService.manualUpdateTxHistory(data.refIds)
+  }
+  
   @Post('/get-digiflazz')
   async getDigiflazzProductPrice(){
     return this.transactionService.getDigiflazzPrice()
