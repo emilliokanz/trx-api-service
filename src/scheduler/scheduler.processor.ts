@@ -30,6 +30,6 @@ export class SchedulerProcessor extends WorkerHost {
     // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     // await delay(5000);
-    // await this.transactionService.getItemkuOrderList();
+    await this.transactionService.getItemkuOrderList();
   }
 }
