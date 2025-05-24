@@ -34,6 +34,9 @@ export function createUserTrackingExtension(getCurrentUser: () => { id: any, rol
                     if (id && role == Roles.Admin && !excludeModelFindMany.includes(model)) {
                         args.where = { ...args.where, createdBy: id }
                     }
+                    else if (id && role == Roles.SuperAdmin && !excludeModelFindMany.includes(model)) {
+                        args.where = { ...args.where }
+                    }
                     return query(args)
                 },
 

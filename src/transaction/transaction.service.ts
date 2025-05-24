@@ -20,7 +20,7 @@ import {
 import { TransactionRequestDto } from './dto/transaction.dto';
 import { BalanceHistoryService } from 'src/balanceHistory/balanceHistory.service';
 import { generateItemkuHeader } from 'src/utils/generateItemkuHeader';
-import { ItemkuOrder, ProductPrice } from '@prisma/client';
+import { ItemkuOrder, Prisma, ProductPrice } from '@prisma/client';
 import { getGarenaPlayerId, getMlPlayerId } from 'src/utils/mobileLegends/getPlayerId';
 import { ProductService } from 'src/product/product.service';
 import { GameItemDto } from './dto/gameItem.dto';
@@ -102,13 +102,33 @@ export class TransactionService {
     };
   }
 
-  async getTransactionHistories(page: number, take: number) {
+  async getTransactionHistories(page: number, take: number, status?: string, source?: string) {
+    let where: any = {}
+
+    if(status){
+      where = {
+        status
+      }
+    }
+
+    if(source){
+      where = {
+        source,
+      }
+    }
+    
     const data = await this.prisma.transactionHistory.findMany({
       skip: page - 1,
       take,
+      where,
+      include: {
+        order: true
+      }
     });
 
-    const totalData = await this.prisma.transactionHistory.count();
+    const totalData = await this.prisma.transactionHistory.count({
+      where
+    });
 
     const paginationData: PaginationIface = {
       data,
@@ -120,6 +140,94 @@ export class TransactionService {
     return paginationData;
   }
 
+  async getItemkuOrderHistory(page: number, take: number, status?: string) {
+    const itemkuOrderWithRelations: Prisma.ItemkuOrderGetPayload<{
+      include: {
+        transactionHistory: true;
+      };
+    }>[] = []
+  
+    const data: typeof itemkuOrderWithRelations = await this.prisma.itemkuOrder.findMany({
+      skip: (page - 1) * take, // FIX: skip was wrong
+      take,
+      where: {
+        transactionHistory: status
+          ? {
+              every: {
+                status,
+              },
+            }
+          : undefined,
+      },
+      include: {
+        transactionHistory: true,
+      },
+    });
+  
+    const totalData = await this.prisma.itemkuOrder.count({
+      where: {
+        transactionHistory: status
+          ? {
+              every: {
+                status,
+              },
+            }
+          : undefined,
+      },
+    });
+  
+    const paginationData: PaginationIface = {
+      data,
+      totalData,
+      page,
+      pageLength: Math.ceil(totalData / take),
+    };
+
+    this.updateAllTxTStatus
+  
+    return paginationData;
+  }
+
+  async updateAllTxTStatus(){
+    const data = await this.prisma.transactionHistory.findMany()
+    const updatedIds: string[] = []
+    data.forEach(async(x) => {
+        if(x.status == TransactionStatus.PENDING){
+          try{
+            const statusFetch = await this.getPaymentTransactionStatus(x.ref_id)
+            updatedIds.push(x.ref_id)
+            console.log(statusFetch)
+          }catch(e){
+            console.log(e)
+            console.error(`failed fetching status, refID : ${x.ref_id}`)
+          }
+        }
+    })
+
+    return updatedIds
+  }
+
+  async manualUpdateTxHistory(refIds: string[]){
+    try{
+      await this.prisma.transactionHistory.updateMany({
+        where: {
+          ref_id: {
+            in: refIds
+          }
+        },
+        data: {
+          status: TransactionStatus.SUCCESS
+        }
+      })
+    }catch(e){
+      console.error(`failed updating all tx`)
+      console.log(e)
+      return e
+    }
+
+    return refIds
+  }
+  
   async getTransactionHistoryById(ref_id: string) {
     const data = await this.prisma.transactionHistory.findUnique({
       where: { ref_id },
@@ -130,7 +238,7 @@ export class TransactionService {
 
     return data;
   }
-  
+
 
   async requestTransaction(transactionData: TransactionRequest) {
     const { buyer_sku_code, customer_no, ref_id, transactionDetail, username } =
@@ -182,7 +290,7 @@ export class TransactionService {
       return response.data;
 
     } catch (error) {
-      if(error.response.data.data){
+      if (error.response.data.data) {
         await this.telegramLib.sendMessage(error.response.data.data, 'FAILED')
         console.log('Error Digiflazz Request Transaction', error.response.data.data);
       } else {
@@ -421,12 +529,12 @@ export class TransactionService {
 
     if (orders.length > 0) {
       orders.forEach(async (x: ItemkuOrder) => {
-          if(x.game_name === "Garena Free Fire" || x.game_name === "Garena Free Fire MAX" || x.game_name === 'Mobile Legends'){
-            console.log('Processing Order', x)
-            await this.updateItemkuOrderStatus(x)
-          } else {
-            console.log('No new Mobile Legends or Free Fire order found')
-          }
+        if (x.game_name === "Garena Free Fire" || x.game_name === "Garena Free Fire MAX" || x.game_name === 'Mobile Legends') {
+          console.log('Processing Order', x)
+          await this.updateItemkuOrderStatus(x)
+        } else {
+          console.log('No new Mobile Legends or Free Fire order found')
+        }
       })
     } else {
       this.logger.debug('No new order found')
@@ -437,13 +545,6 @@ export class TransactionService {
   }
 
   async updateItemkuOrderStatus(orderData: ItemkuOrder) {
-    let customer_no: string | null = ''
-    const product = await this.getProductByItemKu(orderData.game_name, orderData.product_name)
-
-    if (!product) {
-      return null
-    }
-
     const itemkuOrder = await this.prisma.itemkuOrder.findUnique({
       where: {
         order_id: orderData.order_id
@@ -455,6 +556,55 @@ export class TransactionService {
       return null
     }
 
+    await this.processUpdateItemkuOrder(orderData)
+  }
+
+  async bulkUpdateItemkuOrderStatus() {
+
+    const transactions = await this.prisma.transactionHistory.findMany({
+      where: {
+        buyer_sku_code: {
+          not: ''
+        },
+        status: TransactionStatus.FAILED
+      },
+      include: {
+        order: true
+      }
+    })
+
+    if(transactions.length !== 0){
+      transactions.forEach(async(tx) => {
+        const ref_id = generateReferenceId();
+        
+  
+        if(tx.order){
+          try{
+            await this.processTransaction(ref_id, tx.buyer_sku_code, tx.customer_no, tx.order_id || 0, tx.order)
+          }catch(_){
+            console.error(`failed processing tx: ${ref_id}`)
+          }
+        }
+      })
+  
+      const toDeleteRefIds : string[]= []
+      transactions.forEach((x) => toDeleteRefIds.push(x.ref_id))
+  
+      await this.prisma.transactionHistory.deleteMany({
+        where: {
+          ref_id: {
+            in: toDeleteRefIds
+          }
+        }
+      })
+    }
+
+    return transactions
+  }
+
+  async processUpdateItemkuOrder(orderData: ItemkuOrder){
+    let customer_no: string | null = ''
+
     const payload = {
       order_id: orderData.order_id,
       action: "DELIVER",
@@ -464,27 +614,28 @@ export class TransactionService {
     const apiUrl = 'https://tokoku-gateway.itemku.com/api/order/action'; // Ganti dengan URL endpoint Anda
 
     try {
-      const updateOrder = await axios.post(apiUrl, payload, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          'X-Api-Key': process.env.ITEMKU_API_KEY ?? '',
-          'Nonce': nonce,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      console.log(updateOrder)
+      if(process.env.NODE_ENV !== "dev"){
+        const updateOrder = await axios.post(apiUrl, payload, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'X-Api-Key': process.env.ITEMKU_API_KEY ?? '',
+            'Nonce': nonce,
+            'Content-Type': 'application/json'
+          }
+        })
+        console.log(updateOrder)
+      }
 
       const jsonString = orderData.required_information?.toString().replace(/(\w+):/g, '"$1":');
-      const requiredInformation = JSON.parse(`{ "required_information": ${jsonString} }`);  
+      const requiredInformation = JSON.parse(`{ "required_information": ${jsonString} }`);
 
 
-      if(orderData.game_name === "Mobile Legends"){
+      if (orderData.game_name === "Mobile Legends") {
         this.logger.debug('getting ml player id history')
         customer_no = getMlPlayerId(requiredInformation)
       }
 
-      if(orderData.game_name === "Garena Free Fire" || orderData.game_name === "Garena Free Fire MAX"){
+      if (orderData.game_name === "Garena Free Fire" || orderData.game_name === "Garena Free Fire MAX") {
         this.logger.debug(`getting ${orderData.game_name} ml player id history`)
         customer_no = getGarenaPlayerId(requiredInformation)
       }
@@ -523,6 +674,14 @@ export class TransactionService {
 
       this.logger.debug('processing transaction')
 
+      const product = await this.getProductByItemKu(orderData.game_name, orderData.product_name)
+
+      if (!product) {
+        const ref_id = generateReferenceId();
+        await this.createFailedTransactionHistory(ref_id, '', customer_no ?? '', orderData.order_id, orderData)
+        return null
+      }
+
       // Loop transaction based on quantity ammount
       for (let i = 0; i < orderData.quantity; i++) {
         const ref_id = generateReferenceId();
@@ -534,15 +693,43 @@ export class TransactionService {
     }
   }
 
+  async createFailedTransactionHistory(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number, itemkuOrder: ItemkuOrder) {
+    const requestBody = {
+      username: process.env.DIGI_USERNAME ?? '',
+      buyer_sku_code: buyer_sku_code,
+      customer_no: customer_no,
+      ref_id: ref_id,
+      sign: '',
+    };
+
+    await this.prisma.transactionHistory.create({
+      data: {
+        ...requestBody,
+        status: TransactionStatus.FAILED,
+        profit: 0,
+        customer_id: null,
+        createdBy: null,
+        item_price: 0,
+        customer_username: '',
+        source: 'ITEMKU',
+        order_id
+      },
+    });
+  }
+
   async getProductByItemKu(gameName: string, productName: string) {
     const product = await this.prisma.productPrice.findMany({
       where: {
         ItemkuProduct: {
-          item_name: productName,
-          game_name: gameName
+          some: {
+            item_name: productName,
+            game_name: gameName
+          }
         }
       }
     })
+
+    console.log(product, "found product")
 
     if (product.length === 0) {
       this.logger.error(`Searching product with game name: ${gameName} and product name: ${productName} not found`)
@@ -597,7 +784,7 @@ export class TransactionService {
     const orders = response.data.data
   }
 
-  async processTransaction(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number, itemkuOrder: ItemkuOrder) {
+  async processTransaction(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number, itemkuOrder?: ItemkuOrder) {
     try {
       const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', ref_id);
 
@@ -609,10 +796,14 @@ export class TransactionService {
         sign: sign,
       };
 
-      const response = await httpAgentPost(
-        requestBody,
-        'https://api.digiflazz.com/v1/transaction',
-      );
+      if(process.env.NODE_ENV !== "dev"){
+        const response = await httpAgentPost(
+          requestBody,
+          'https://api.digiflazz.com/v1/transaction',
+        );
+
+        console.log('Success Digiflazz Request Transaction', response.data);
+      }
 
       await this.prisma.transactionHistory.create({
         data: {
@@ -628,11 +819,10 @@ export class TransactionService {
       });
 
 
-      console.log('Success Digiflazz Request Transaction', response.data);
 
       await this.getPaymentTransactionStatus(ref_id)
     } catch (error: any) {
-      if(error.response.data.data){
+      if (error.response.data.data) {
         await this.telegramLib.sendMessage(error.response.data.data, 'FAILED ITEMKU', itemkuOrder)
         console.log('Error Digiflazz Request Transaction', error.response.data.data);
       } else {
@@ -675,7 +865,7 @@ export class TransactionService {
       }
     }
 
-    
+
     const products = await this.prisma.productPrice.findMany({
       where: {
         brand: 'MOBILE LEGENDS'
