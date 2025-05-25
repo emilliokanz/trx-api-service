@@ -566,7 +566,8 @@ export class TransactionService {
         buyer_sku_code: {
           not: ''
         },
-        status: TransactionStatus.FAILED
+        status: TransactionStatus.FAILED,
+        source: 'ITEMKU'
       },
       include: {
         order: true
@@ -582,7 +583,7 @@ export class TransactionService {
           try{
             await this.processTransaction(ref_id, tx.buyer_sku_code, tx.customer_no, tx.order_id || 0, tx.order)
           }catch(_){
-            console.error(`failed processing tx: ${ref_id}`)
+            console.error(`failed processing tx: ${ref_id}, with orderId: ${tx.order_id}`)
           }
         }
       })

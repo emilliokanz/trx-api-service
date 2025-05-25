@@ -26,6 +26,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
 
 
+  app.enableCors();
   await app.listen(8080, '0.0.0.0');
 }
 bootstrap();
