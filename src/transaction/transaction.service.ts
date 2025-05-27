@@ -385,9 +385,9 @@ export class TransactionService {
       // console.debug("Update customer balance", updateUserBalance)
     }
 
-    if (trxStatus == TransactionStatus.FAILED.toString()) {
-      await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
-    }
+    // if (trxStatus == TransactionStatus.FAILED.toString()) {
+    //   await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
+    // }
 
     return update;
   }
