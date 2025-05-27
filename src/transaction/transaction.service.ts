@@ -231,6 +231,9 @@ export class TransactionService {
   async getTransactionHistoryById(ref_id: string) {
     const data = await this.prisma.transactionHistory.findUnique({
       where: { ref_id },
+      include: {
+        order: true,
+      }
       // include: {
       //   customer: true
       // }
@@ -306,6 +309,11 @@ export class TransactionService {
 
   async getPaymentTransactionStatus(ref_id: string) {
     const transaction = await this.getTransactionHistoryById(ref_id)
+    const product = await this.prisma.productPrice.findUnique({
+      where: {
+        buyer_sku_code: transaction?.buyer_sku_code
+      }
+    })
 
     if (!transaction) {
       return new HttpException('Transaction not found', HttpStatus.BAD_REQUEST);
@@ -351,7 +359,19 @@ export class TransactionService {
     });
 
     if (trxStatus == TransactionStatus.SUCCESS.toString()) {
-      // const profit = await this.owner.divideOwnerProfit(update.profit || 0);
+      console.log(transaction, "transaction")
+      let setProfit = 0
+      if(transaction.source == 'ITEMKU'){
+        if(transaction.order?.price && product?.price){
+          setProfit = transaction.order?.price - product?.price
+          console.log(setProfit, "profit amount", product?.price, "product price")
+        }
+      } else {
+        setProfit = transaction.profit || 0
+      }
+
+      const profit = await this.owner.divideOwnerProfit(setProfit);
+      this.logger.debug("Received Profit", profit)
       // const updateUserBalance = await this.balance.createBalanceHistory({
       //   username: transaction.customer_username ?? '',
       //   af_balance: transaction.customer?.balance ?? 0,
@@ -362,13 +382,12 @@ export class TransactionService {
       //   ref_id,
       //   type: 'Transaction'
       // })
-      // this.logger.debug("Received Profit", profit)
       // console.debug("Update customer balance", updateUserBalance)
     }
 
-    // if (trxStatus == TransactionStatus.FAILED.toString()) {
-    //   await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
-    // }
+    if (trxStatus == TransactionStatus.FAILED.toString()) {
+      await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
+    }
 
     return update;
   }

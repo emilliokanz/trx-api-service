@@ -7,14 +7,12 @@ async function main() {
     {
       name: 'Arvin',
       balance: 0,
-    },
-    {
-      name: 'Vidi',
-      balance: 0,
+      percentage: 60
     },
     {
       name: 'Emil',
       balance: 0,
+      percentage: 40
     },
   ];
 
