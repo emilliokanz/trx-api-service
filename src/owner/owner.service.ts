@@ -72,29 +72,45 @@ export class OwnerService {
     return paginationData;
   }
 
-  async divideOwnerProfit(profit: number) {
-    if ((await this.findTotalOwner()) > 0) {
-      const update = await this.prisma.owner.updateMany({
-        data: {
-          balance: profit / (await this.findTotalOwner()),
-        },
-      });
+  async getAllOwners(){
+    return await this.prisma.owner.findMany()
+  }
 
-      return update;
+  async divideOwnerProfit(profit: number) {
+    const owners = await this.getAllOwners()
+    if (owners.length > 0) {
+      owners.forEach(async(x) => {
+        if(x.percentage){
+          await this.prisma.owner.update({
+            where: {
+              id: x.id
+            },
+            data: {
+              balance: {increment: Math.floor(profit * (x.percentage / 100))},
+            },
+          });
+        }
+      })
     }
 
     return null;
   }
 
   async decrementOwnerProfit(profit: number) {
-    if ((await this.findTotalOwner()) > 0) {
-      const update = await this.prisma.owner.updateMany({
-        data: {
-          balance: { decrement: profit / (await this.findTotalOwner())},
-        },
-      });
-
-      return update;
+    const owners = await this.getAllOwners()
+    if (owners.length > 0) {
+      owners.forEach(async(x) => {
+        if(x.percentage){
+          await this.prisma.owner.update({
+            where: {
+              id: x.id
+            },
+            data: {
+              balance: {decrement: profit * (x.percentage / 100)},
+            },
+          });
+        }
+      })
     }
 
     return null;
@@ -104,4 +120,5 @@ export class OwnerService {
     const totalData = await this.prisma.owner.count();
     return totalData;
   }
+  
 }

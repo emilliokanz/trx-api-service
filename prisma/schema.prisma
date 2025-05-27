@@ -64,6 +64,7 @@ model Owner {
   name      String
   balance   Int
   user      User?    @relation(fields: [createdBy], references: [id])
+  percentage Int? 
   createdBy Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
