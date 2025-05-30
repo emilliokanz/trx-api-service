@@ -25,6 +25,7 @@ import { getGarenaPlayerId, getMlPlayerId } from 'src/utils/mobileLegends/getPla
 import { ProductService } from 'src/product/product.service';
 import { GameItemDto } from './dto/gameItem.dto';
 import { TelegramLib } from 'src/lib/telegram';
+import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction.dto';
 
 @Injectable()
 export class TransactionService {
@@ -993,6 +994,24 @@ export class TransactionService {
     }
 
     return updatedProducts;
+  }
+
+  async updateTxHistoryById(data: UpdateTransactionRequestDto){
+    const findTx = await this.prisma.transactionHistory.findUnique({where: {
+      ref_id: data.ref_id
+    }})
+
+    if(!findTx){
+      return new HttpException("Transaction not found", HttpStatus.OK)
+    }
+
+    const update = await this.prisma.transactionHistory.update({
+      where: {
+        ref_id: data.ref_id
+      }, data
+    })
+
+    return update
   }
 }
 async function checkBalance() {
