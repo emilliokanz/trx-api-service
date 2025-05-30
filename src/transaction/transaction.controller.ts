@@ -22,6 +22,7 @@ import * as fs from 'fs';
 import * as util from 'util';
 import { pipeline } from 'stream';
 import * as path from 'path';
+import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction.dto';
 const pump = util.promisify(pipeline);
 
 
@@ -115,16 +116,19 @@ export class TransactionController {
     return this.transactionService.updateItemkuOrderStatus(data)
   }
 
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
   @Post('/update-order-itemku')
   async updateItemkuOrder(@Body() data : ItemkuOrder){
     return this.transactionService.updateItemkuOrderStatus(data)
   }
 
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
   @Post('/bulk-update-tx')
   async bulkUpdatetx(){
     return this.transactionService.bulkUpdateItemkuOrderStatus()
   }
 
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
   @Post('/manual-update-tx')
   async manualUpdatetx(@Body() data : any){
     return this.transactionService.manualUpdateTxHistory(data.refIds)
@@ -140,6 +144,13 @@ export class TransactionController {
     return this.transactionService.getItemkuPrice()
   }
 
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @Post('/update-tx-history')
+  async updateTransactionHistoryDetail(@Body() data: UpdateTransactionRequestDto){
+    return this.transactionService.updateTxHistoryById(data)
+  }
+
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
   @Post('/itemku/product/upload')
   async uploadFile(@Req() req: any): Promise<any> {
     try {
