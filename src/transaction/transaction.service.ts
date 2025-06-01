@@ -26,6 +26,8 @@ import { ProductService } from 'src/product/product.service';
 import { GameItemDto } from './dto/gameItem.dto';
 import { TelegramLib } from 'src/lib/telegram';
 import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction.dto';
+import { GetTransaction } from './dto/transaction/getTransaction.dto';
+import * as moment from 'moment';
 
 @Injectable()
 export class TransactionService {
@@ -141,54 +143,57 @@ export class TransactionService {
     return paginationData;
   }
 
-  async getItemkuOrderHistory(page: number, take: number, status?: string) {
-    const itemkuOrderWithRelations: Prisma.ItemkuOrderGetPayload<{
-      include: {
-        transactionHistory: true;
-      };
-    }>[] = []
+  async getItemkuOrderHistory(transactionData: GetTransaction) {
+    const { page, size, dateEnd, dateStart, sort, status } = transactionData;
+    console.log(dateStart, dateEnd, "dates")
   
-    const data: typeof itemkuOrderWithRelations = await this.prisma.itemkuOrder.findMany({
-      skip: (page - 1) * take, // FIX: skip was wrong
-      take,
-      where: {
-        transactionHistory: status
-          ? {
-              every: {
-                status,
-              },
-            }
-          : undefined,
+    const whereClause: Prisma.ItemkuOrderWhereInput = {
+      transactionHistory: {
+        every: {
+          ...(status ? { status } : {}),
+        },
       },
+      ...(dateStart && dateEnd
+        ? {
+            updatedAt: {
+              gte: moment(dateStart, 'DD-MM-YYYY').toDate(),
+              lte: moment(dateEnd, 'DD-MM-YYYY').toDate(),
+            },
+          }
+        : {}),
+    };
+  
+    const orderByClause: Prisma.ItemkuOrderOrderByWithAggregationInput =
+      sort === 'DATE_ASC'
+        ? { updatedAt: 'asc'  }
+        : {   updatedAt: 'desc'  }
+  
+    const data = await this.prisma.itemkuOrder.findMany({
+      skip: (page - 1) * size,
+      take: size,
+      where: whereClause,
       include: {
         transactionHistory: true,
       },
+      orderBy: orderByClause
     });
   
     const totalData = await this.prisma.itemkuOrder.count({
-      where: {
-        transactionHistory: status
-          ? {
-              every: {
-                status,
-              },
-            }
-          : undefined,
-      },
+      where: whereClause,
     });
   
     const paginationData: PaginationIface = {
       data,
       totalData,
       page,
-      pageLength: Math.ceil(totalData / take),
+      pageLength: Math.ceil(totalData / size),
     };
-
-    this.updateAllTxTStatus
+  
+    this.updateAllTxTStatus;
   
     return paginationData;
   }
-
+  
   async updateAllTxTStatus(){
     const data = await this.prisma.transactionHistory.findMany()
     const updatedIds: string[] = []
