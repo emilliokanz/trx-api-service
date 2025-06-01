@@ -57,5 +57,5 @@ jobs:
       
             sudo docker start redis
       
-            pm2 restart 2 --update-env
+            pm2 restart 1 --update-env
           EOF
