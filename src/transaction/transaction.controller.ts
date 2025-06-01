@@ -23,6 +23,7 @@ import * as util from 'util';
 import { pipeline } from 'stream';
 import * as path from 'path';
 import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction.dto';
+import { GetTransaction } from './dto/transaction/getTransaction.dto';
 const pump = util.promisify(pipeline);
 
 
@@ -103,11 +104,9 @@ export class TransactionController {
   @UserRoles([Roles.Admin, Roles.SuperAdmin])  
   @HttpCode(200)
   @Post('/get-itemku-history')
-  async getItemkuTxHistories(@Body() transactionData: any) {
+  async getItemkuTxHistories(@Body() transactionData: GetTransaction) {
     return this.transactionService.getItemkuOrderHistory(
-      transactionData.page,
-      transactionData.take,
-      transactionData.status,
+      transactionData
     );
   }
 
