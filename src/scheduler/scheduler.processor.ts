@@ -30,7 +30,9 @@ export class SchedulerProcessor extends WorkerHost {
     // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     // await delay(5000);
-    await this.transactionService.updateAllTxTStatus()
-    await this.transactionService.getItemkuOrderList();
+    if(process.env.NODE_ENV !== 'dev'){
+      await this.transactionService.updateAllTxTStatus()
+      await this.transactionService.getItemkuOrderList();
+    }
   }
 }
