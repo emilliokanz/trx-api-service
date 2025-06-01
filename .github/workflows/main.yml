@@ -42,7 +42,7 @@ jobs:
             # Navigate to your project directory
             cd trx-api-service
 
-            rm -r redis_data
+            sudo rm -r redis_data
 
             # Pull latest changes
             git pull origin main
@@ -50,6 +50,8 @@ jobs:
             # Install dependencies and build project
             npm install
             npm build
+
+            docker start redis
 
             # Restart application with pm2
             pm2 restart 2 --update-env
