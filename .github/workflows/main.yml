@@ -35,24 +35,27 @@ jobs:
         env:
           NODE_ENV: production
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no BundaranMonyet@103.127.97.47 << 'EOF'         
-
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no BundaranMonyet@103.127.97.47 << 'EOF'
+            # Load profile to get nvm, node, npm, pm2
+            source ~/.nvm/nvm.sh || true
+            source ~/.profile || true
+            source ~/.bashrc || true
+      
+            which node
+            which npm
+            which pm2
+      
             sudo docker stop redis
-
-            # Navigate to your project directory
+      
             cd trx-api-service
-
             sudo rm -r redis_data
-
-            # Pull latest changes
+      
             git pull origin main
-
-            # Install dependencies and build project
+      
             npm install
-            npm build
-
-            docker start redis
-
-            # Restart application with pm2
+            npm run build
+      
+            sudo docker start redis
+      
             pm2 restart 2 --update-env
           EOF
