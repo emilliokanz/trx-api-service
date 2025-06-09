@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { FastifyAdapter } from '@bull-board/fastify';
 import { BalanceHistoryModule } from './balanceHistory/balanceHistory.module';
+import { ExternalTransactionModule } from './externalTransaction/externalTransaction.module';
 
 
 @Module({
@@ -25,6 +26,7 @@ import { BalanceHistoryModule } from './balanceHistory/balanceHistory.module';
       route: '/queues', // Base route for the dashboard
       adapter: FastifyAdapter, // Or FastifyAdapter
     }),
+    ExternalTransactionModule
   ],
   controllers: [AppController],
   providers: [AppService],
