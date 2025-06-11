@@ -1,4 +1,4 @@
-export class ApiResponse {
+export class ApiResponseDto {
     errorCode: string
     message: string
 

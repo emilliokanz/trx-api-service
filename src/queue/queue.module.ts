@@ -39,8 +39,20 @@ import { ProductService } from 'src/product/product.service';
         removeOnFail: false,
       },
     }),
+    BullModule.registerQueue({
+      name: 'extTransactions',
+      defaultJobOptions: {
+        delay: 1000,
+        removeOnComplete: false,
+        removeOnFail: false,
+      },
+    }),
     BullBoardModule.forFeature({
       name: 'userTransactions', 
+      adapter: BullMQAdapter,
+    }),
+    BullBoardModule.forFeature({
+      name: 'extTransactions', 
       adapter: BullMQAdapter,
     }),
     BullBoardModule.forFeature({

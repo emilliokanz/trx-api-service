@@ -146,10 +146,24 @@ model ExternalUser {
   password                   String
   balance                    Int
   role                       Roles
+  apiKey                     String?
+  isCustomer                 Boolean
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime                     @default(now()) @updatedAt
   ExternalUserBalanceHistory ExternalUserBalanceHistory[]
   ExternalTransactionHistory ExternalTransactionHistory[]
+  ExternalProduct            ExternalProduct[]
+  ExternalSupplierProduct    ExternalSupplierProduct[]
+  ExternalAdminUsers         ExternalAdminUsers?          @relation(fields: [externalAdminUsersUserId], references: [userId])
+  externalAdminUsersUserId   Int?
+  ExternalTransactionBatch   ExternalTransactionBatch[]
+}
+
+model ExternalAdminUsers {
+  userId    Int            @id
+  customers ExternalUser[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @default(now()) @updatedAt
 }
 
 model ExternalUserBalanceHistory {
@@ -167,23 +181,66 @@ model ExternalUserBalanceHistory {
   updatedAt    DateTime            @default(now()) @updatedAt
 }
 
+model ExternalTransactionBatch {
+  batch_id    String                       @id
+  user        ExternalUser?                @relation(fields: [createdBy], references: [id])
+  transaction ExternalTransactionHistory[]
+  createdBy   Int?
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @default(now()) @updatedAt
+}
+
 model ExternalTransactionHistory {
-  ref_id            String        @id
-  username          String
-  buyer_sku_code    String
-  customer_no       String
-  sign              String
-  customer_id       Int?
-  status            String?
-  customer_username String?
-  source            String?
-  item_price        Int?
-  profit            Int?
-  user              ExternalUser? @relation(fields: [createdBy], references: [id])
-  createdBy         Int?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @default(now()) @updatedAt
-  order_id          Int?
+  ref_id                           String                    @id
+  username                         String
+  buyer_sku_code                   String
+  customer_no                      String
+  sign                             String
+  customer_id                      Int?
+  status                           String?
+  customer_username                String?
+  source                           String?
+  item_price                       Int?
+  profit                           Int?
+  user                             ExternalUser?             @relation(fields: [createdBy], references: [id])
+  createdBy                        Int?
+  createdAt                        DateTime                  @default(now())
+  updatedAt                        DateTime                  @default(now()) @updatedAt
+  order_id                         Int?
+  ExternalTransactionBatch         ExternalTransactionBatch? @relation(fields: [externalTransactionBatchBatch_id], references: [batch_id])
+  externalTransactionBatchBatch_id String?
+}
+
+model ExternalProduct {
+  item_id     Int                      @id @unique
+  game_name   String
+  item_name   String
+  server_name String
+  group_name  String
+  stock       Int
+  min_order   Int
+  price       Int
+  product_id  Int?
+  product     ExternalSupplierProduct? @relation(fields: [product_id], references: [id])
+  user        ExternalUser?            @relation(fields: [createdBy], references: [id])
+  createdBy   Int?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @default(now()) @updatedAt
+}
+
+model ExternalSupplierProduct {
+  id              Int               @id @default(autoincrement())
+  brand           String
+  category        String
+  price           Int
+  actualPrice     Int?
+  buyer_sku_code  String            @unique
+  product_name    String
+  user            ExternalUser?     @relation(fields: [createdBy], references: [id])
+  createdBy       Int?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now()) @updatedAt
+  ExternalProduct ExternalProduct[]
 }
 
 enum Roles {
