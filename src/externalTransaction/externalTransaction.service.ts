@@ -131,23 +131,30 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[4002], null, '4000')
     }
 
-    const product = await this.prisma.externalSupplierProduct.findFirst({
+    const junctionProduct = await this.prisma.extProductToSupplierJunction.findMany({
       where: {
-        code
-      }
+        item_id: code
+      },
     })
 
-    if (!product) {
+    if (!junctionProduct) {
       return new ApiResponseDto(errorMap[2000], null, '2000')
     }
+    
 
-    const totalCost = product.price * customer_no.length
+    // const totalCost = (() => {
+    //   const cost = 0
+    //   junctionProduct.forEach((x) => {
+    //     const product 
+    //   })
+    //   product.price * customer_no.length
+    // })
 
     const adminBalance = await this.getAdminBalanceFn()
 
-    if (totalCost > adminBalance) {
-      return new ApiResponseDto(errorMap[5000], null, '5000')
-    }
+    // if (totalCost > adminBalance) {
+    //   return new ApiResponseDto(errorMap[5000], null, '5000')
+    // }
 
     const txDetails: any[] = []
 
@@ -181,7 +188,7 @@ export class ExternalTransactionService {
       };
 
       const response = await this.httpAgentPost(body, 'api/transaction');
-      console.log('Success Digiflazz Request Transaction', response.data);
+      console.log('Success Bluestuck Request Transaction', response.data);
 
       const transaction = response.data?.data;
 

@@ -14,34 +14,33 @@ model TransactionHistory {
   customer_no       String
   sign              String
   customer_id       Int?
-  status            String?
-  customer_username String?
-  source            String?
-  item_price        Int?
-  profit            Int?
-  user              User?        @relation(fields: [createdBy], references: [id])
-  createdBy         Int?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @default(now()) @updatedAt
-  customer          Customer?    @relation(fields: [customer_id], references: [id])
-  order             ItemkuOrder? @relation(fields: [order_id], references: [order_id]) // Optional relation 
+  profit            Int?
+  status            String?
+  createdBy         Int?
+  item_price        Int?
+  customer_username String?
+  source            String?
   order_id          Int?
+  user              User?        @relation(fields: [createdBy], references: [id])
+  customer          Customer?    @relation(fields: [customer_id], references: [id])
+  order             ItemkuOrder? @relation(fields: [order_id], references: [order_id])
 }
 
 model Customer {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  username  String
-  balance   Int
-  apiKey    String
-  password  String?
-  user      User?    @relation(fields: [createdBy], references: [id])
-  createdBy Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  TransactionHistory     TransactionHistory[]
+  id                     Int                      @id @default(autoincrement())
+  username               String
+  balance                Int
+  apiKey                 String
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @default(now()) @updatedAt
+  createdBy              Int?
+  password               String?
+  name                   String?
+  user                   User?                    @relation(fields: [createdBy], references: [id])
   CustomerBalanceHistory CustomerBalanceHistory[]
+  TransactionHistory     TransactionHistory[]
 }
 
 model ProductPrice {
@@ -49,94 +48,92 @@ model ProductPrice {
   brand          String
   category       String
   price          Int
-  actualPrice    Int?
   buyer_sku_code String          @unique
   product_name   String
-  user           User?           @relation(fields: [createdBy], references: [id])
-  createdBy      Int?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @default(now()) @updatedAt
+  actualPrice    Int?
+  createdBy      Int?
   ItemkuProduct  ItemkuProduct[]
+  user           User?           @relation(fields: [createdBy], references: [id])
 }
 
 model Owner {
   id         Int      @id @default(autoincrement())
   name       String
   balance    Int
-  user       User?    @relation(fields: [createdBy], references: [id])
-  percentage Int?
-  createdBy  Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @default(now()) @updatedAt
+  createdBy  Int?
+  percentage Int?
+  user       User?    @relation(fields: [createdBy], references: [id])
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  username  String
-  password  String
-  role      Roles
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  Owner              Owner[]
-  TransactionHistory TransactionHistory[]
+  id                 Int                  @id @default(autoincrement())
+  name               String
+  role               Roles
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
+  password           String
+  username           String
   Customer           Customer[]
-  ProductPrice       ProductPrice[]
   ItemkuProduct      ItemkuProduct[]
+  Owner              Owner[]
+  ProductPrice       ProductPrice[]
+  TransactionHistory TransactionHistory[]
 }
 
 model CustomerBalanceHistory {
   id         Int                 @id @default(autoincrement())
   name       String
   username   String
-  type       CustomerBalanceType
   bf_balance Int
   af_balance Int
   amount     Int
-  ref_id     String?
-  Customer   Customer?           @relation(fields: [customerId], references: [id])
   customerId Int
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @default(now()) @updatedAt
+  ref_id     String?
+  type       CustomerBalanceType
+  Customer   Customer            @relation(fields: [customerId], references: [id])
 }
 
 model ItemkuOrder {
-  order_id             Int                  @id @unique // The unique order ID (138841391)
-  order_number         String               @unique // The unique order number ('OD000000138841391')
-  product_id           Int // The product ID (1355967)
-  price                Int // The price of the product (1800)
-  quantity             Int // Quantity (1)
-  game_name            String // The game name ('Mobile Legends')
-  product_name         String // The product name ('5 Diamonds')
-  using_delivery_info  Int                  @default(0) // Whether delivery info is used (0 or 1)
-  delivery_info_field  String? // Delivery info field, if present (nullable)
-  status               String // The status of the order ('REQUIRE_PROCESS')
-  required_information Json // The required information (JSON: '{"player_id":"478396496","zone_id":"2457","username":"tarou"}')
-  delivery_info        String? // The delivery info, if any (nullable)
-  order_income         Int // The income from the order (1710)
-  is_from_ads          Boolean              @default(false) // Whether the order came from ads (false)
+  price                Int
+  quantity             Int
+  status               String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  delivery_info        String?
+  delivery_info_field  String?
+  game_name            String
+  is_from_ads          Boolean              @default(false)
+  order_id             Int                  @id @unique
+  order_income         Int
+  order_number         String               @unique
+  product_id           Int
+  product_name         String
+  required_information Json
+  using_delivery_info  Int                  @default(0)
   transactionHistory   TransactionHistory[]
-
-  createdAt DateTime @default(now()) // Timestamps for order creation
-  updatedAt DateTime @updatedAt // Timestamps for last update
 }
 
 model ItemkuProduct {
   item_id     Int           @id @unique
   game_name   String
-  item_name   String
   server_name String
   group_name  String
-  stock       Int
   min_order   Int
   price       Int
   product_id  Int?
-  product     ProductPrice? @relation(fields: [product_id], references: [id])
-  user        User?         @relation(fields: [createdBy], references: [id])
   createdBy   Int?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @default(now()) @updatedAt
+  stock       Int
+  item_name   String
+  user        User?         @relation(fields: [createdBy], references: [id])
+  product     ProductPrice? @relation(fields: [product_id], references: [id])
 }
 
 model ExternalUser {
@@ -150,20 +147,20 @@ model ExternalUser {
   isCustomer                 Boolean
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime                     @default(now()) @updatedAt
-  ExternalUserBalanceHistory ExternalUserBalanceHistory[]
-  ExternalTransactionHistory ExternalTransactionHistory[]
+  externalAdminUsersUserId   Int?
   ExternalProduct            ExternalProduct[]
   ExternalSupplierProduct    ExternalSupplierProduct[]
-  ExternalAdminUsers         ExternalAdminUsers?          @relation(fields: [externalAdminUsersUserId], references: [userId])
-  externalAdminUsersUserId   Int?
   ExternalTransactionBatch   ExternalTransactionBatch[]
+  ExternalTransactionHistory ExternalTransactionHistory[]
+  ExternalAdminUsers         ExternalAdminUsers?          @relation(fields: [externalAdminUsersUserId], references: [userId])
+  ExternalUserBalanceHistory ExternalUserBalanceHistory[]
 }
 
 model ExternalAdminUsers {
   userId    Int            @id
-  customers ExternalUser[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @default(now()) @updatedAt
+  customers ExternalUser[]
 }
 
 model ExternalUserBalanceHistory {
@@ -175,19 +172,19 @@ model ExternalUserBalanceHistory {
   af_balance   Int
   amount       Int
   ref_id       String
-  ExternalUser ExternalUser        @relation(fields: [userId], references: [id])
   userId       Int
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @default(now()) @updatedAt
+  ExternalUser ExternalUser        @relation(fields: [userId], references: [id])
 }
 
 model ExternalTransactionBatch {
   batch_id    String                       @id
-  user        ExternalUser?                @relation(fields: [createdBy], references: [id])
-  transaction ExternalTransactionHistory[]
   createdBy   Int?
   createdAt   DateTime                     @default(now())
   updatedAt   DateTime                     @default(now()) @updatedAt
+  user        ExternalUser?                @relation(fields: [createdBy], references: [id])
+  transaction ExternalTransactionHistory[]
 }
 
 model ExternalTransactionHistory {
@@ -196,25 +193,25 @@ model ExternalTransactionHistory {
   buyer_sku_code                   String
   customer_no                      String
   sign                             String
-  rc                               String
-  sn                               String
   customer_id                      Int?
   status                           String?
   customer_username                String?
   source                           String?
   item_price                       Int?
   profit                           Int?
-  user                             ExternalUser?             @relation(fields: [createdBy], references: [id])
   createdBy                        Int?
   createdAt                        DateTime                  @default(now())
   updatedAt                        DateTime                  @default(now()) @updatedAt
   order_id                         Int?
-  ExternalTransactionBatch         ExternalTransactionBatch? @relation(fields: [externalTransactionBatchBatch_id], references: [batch_id])
   externalTransactionBatchBatch_id String?
+  rc                               String
+  sn                               String
+  user                             ExternalUser?             @relation(fields: [createdBy], references: [id])
+  ExternalTransactionBatch         ExternalTransactionBatch? @relation(fields: [externalTransactionBatchBatch_id], references: [batch_id])
 }
 
 model ExternalProduct {
-  item_id                      Int                            @id @unique
+  item_id                      String                         @id @unique
   game_name                    String
   item_name                    String
   server_name                  String
@@ -222,46 +219,44 @@ model ExternalProduct {
   stock                        Int
   min_order                    Int
   price                        Int
-  product_id                   Int?
-  product                      ExternalSupplierProduct?       @relation(fields: [product_id], references: [id])
-  user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
   createdBy                    Int?
   createdAt                    DateTime                       @default(now())
   updatedAt                    DateTime                       @default(now()) @updatedAt
   ExtProductToSupplierJunction ExtProductToSupplierJunction[]
+  user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
 }
 
 model ExternalSupplierProduct {
   id                           Int                            @id @default(autoincrement())
-  name                         String
-  type                         String
   brand                        String
   category                     String
   price                        Int
   actualPrice                  Int?
-  code                         String                         @unique
-  status                       Boolean
-  unlimited_stock              Boolean
-  multi                        Boolean
-  start_cut_off                String
-  end_cut_off                  String
-  desc                         String
-  stock                        Int
-  user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
   createdBy                    Int?
   createdAt                    DateTime                       @default(now())
   updatedAt                    DateTime                       @default(now()) @updatedAt
-  ExternalProduct              ExternalProduct[]
+  code                         String                         @unique
+  desc                         String
+  end_cut_off                  String
+  multi                        Boolean
+  start_cut_off                String
+  status                       Boolean
+  unlimited_stock              Boolean
+  name                         String
+  type                         String
+  stock                        Int
   ExtProductToSupplierJunction ExtProductToSupplierJunction[]
+  user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
 }
 
 model ExtProductToSupplierJunction {
-  id         Int                      @id @default(autoincrement())
   product_id Int
-  product    ExternalSupplierProduct? @relation(fields: [product_id], references: [id])
-  item_id    Int
-  extProduct ExternalProduct?         @relation(fields: [item_id], references: [item_id])
+  item_id    String
   qty        Int
+  extProduct ExternalProduct         @relation(fields: [item_id], references: [item_id])
+  product    ExternalSupplierProduct @relation(fields: [product_id], references: [id])
+
+  @@id([product_id, item_id])
 }
 
 enum Roles {

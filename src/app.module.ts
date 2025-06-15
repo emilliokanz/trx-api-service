@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { FastifyAdapter } from '@bull-board/fastify';
 import { BalanceHistoryModule } from './balanceHistory/balanceHistory.module';
+import { ExternalProductModule } from './externalProduct/externalProduct.module';
 
 
 @Module({
@@ -18,6 +19,7 @@ import { BalanceHistoryModule } from './balanceHistory/balanceHistory.module';
     CustomerModule,
     OwnerModule,
     ProductModule,
+    ExternalProductModule,
     AuthModule,
     PrismaModule,
     BalanceHistoryModule,
