@@ -21,16 +21,13 @@ export class ExtenalAuthService {
     });
 
     if (!user) {
-      return new ApiResponseDto("1000", errorMap[1000])
+      return new ApiResponseDto(errorMap[1000], null, "1000")
     }
 
     const comparePassword = await hash(user[0].password);
 
     if (!comparePassword) {
-      return new HttpException(
-        'Username or Password is wrong',
-        HttpStatus.BAD_REQUEST,
-      );
+      return new ApiResponseDto(errorMap[1000], null, "1000")
     }
 
     const jwtPayload = {

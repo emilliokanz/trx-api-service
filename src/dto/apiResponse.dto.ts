@@ -1,9 +1,11 @@
 export class ApiResponseDto {
-    errorCode: string
     message: string
+    data: any
+    errorCode?: string
 
-    constructor(errorCode: string, message: string) {
+    constructor(message: string, data: any, errorCode?: string) {
         this.errorCode = errorCode;
         this.message = message;
+        this.data = data
     }
 }

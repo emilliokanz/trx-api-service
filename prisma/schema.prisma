@@ -196,6 +196,8 @@ model ExternalTransactionHistory {
   buyer_sku_code                   String
   customer_no                      String
   sign                             String
+  rc                               String
+  sn                               String
   customer_id                      Int?
   status                           String?
   customer_username                String?
@@ -212,35 +214,54 @@ model ExternalTransactionHistory {
 }
 
 model ExternalProduct {
-  item_id     Int                      @id @unique
-  game_name   String
-  item_name   String
-  server_name String
-  group_name  String
-  stock       Int
-  min_order   Int
-  price       Int
-  product_id  Int?
-  product     ExternalSupplierProduct? @relation(fields: [product_id], references: [id])
-  user        ExternalUser?            @relation(fields: [createdBy], references: [id])
-  createdBy   Int?
-  createdAt   DateTime                 @default(now())
-  updatedAt   DateTime                 @default(now()) @updatedAt
+  item_id                      Int                            @id @unique
+  game_name                    String
+  item_name                    String
+  server_name                  String
+  group_name                   String
+  stock                        Int
+  min_order                    Int
+  price                        Int
+  product_id                   Int?
+  product                      ExternalSupplierProduct?       @relation(fields: [product_id], references: [id])
+  user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
+  createdBy                    Int?
+  createdAt                    DateTime                       @default(now())
+  updatedAt                    DateTime                       @default(now()) @updatedAt
+  ExtProductToSupplierJunction ExtProductToSupplierJunction[]
 }
 
 model ExternalSupplierProduct {
-  id              Int               @id @default(autoincrement())
-  brand           String
-  category        String
-  price           Int
-  actualPrice     Int?
-  buyer_sku_code  String            @unique
-  product_name    String
-  user            ExternalUser?     @relation(fields: [createdBy], references: [id])
-  createdBy       Int?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @default(now()) @updatedAt
-  ExternalProduct ExternalProduct[]
+  id                           Int                            @id @default(autoincrement())
+  name                         String
+  type                         String
+  brand                        String
+  category                     String
+  price                        Int
+  actualPrice                  Int?
+  code                         String                         @unique
+  status                       Boolean
+  unlimited_stock              Boolean
+  multi                        Boolean
+  start_cut_off                String
+  end_cut_off                  String
+  desc                         String
+  stock                        Int
+  user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
+  createdBy                    Int?
+  createdAt                    DateTime                       @default(now())
+  updatedAt                    DateTime                       @default(now()) @updatedAt
+  ExternalProduct              ExternalProduct[]
+  ExtProductToSupplierJunction ExtProductToSupplierJunction[]
+}
+
+model ExtProductToSupplierJunction {
+  id         Int                      @id @default(autoincrement())
+  product_id Int
+  product    ExternalSupplierProduct? @relation(fields: [product_id], references: [id])
+  item_id    Int
+  extProduct ExternalProduct?         @relation(fields: [item_id], references: [item_id])
+  qty        Int
 }
 
 enum Roles {

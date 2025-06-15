@@ -12,6 +12,8 @@ import { BalanceHistoryService } from 'src/balanceHistory/balanceHistory.service
 import { SchedulerService } from 'src/scheduler/scheduler.service';
 import { SchedulerProcessor } from 'src/scheduler/scheduler.processor';
 import { ProductService } from 'src/product/product.service';
+import { ExternalTransactionService } from 'src/externalTransaction/externalTransaction.service';
+import { ExternalTransactionController } from 'src/externalTransaction/externalTransaction.controller';
 
 
 @Module({
@@ -60,7 +62,7 @@ import { ProductService } from 'src/product/product.service';
       adapter: BullMQAdapter,
     }),
   ],
-  controllers: [TransactionController],
+  controllers: [TransactionController, ExternalTransactionController],
   providers: [
     TransactionService,
     TransactionProcessor,
@@ -70,7 +72,8 @@ import { ProductService } from 'src/product/product.service';
     CustomerService,
     OwnerService,
     BalanceHistoryService,
-    ProductService
+    ProductService,
+    ExternalTransactionService
   ], exports: [
     BullModule,
     PrismaService, TransactionService, OwnerService, BalanceHistoryService,
