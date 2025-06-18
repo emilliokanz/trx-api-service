@@ -4,8 +4,8 @@ import { Job } from 'bullmq';
 import { ExternalTransactionService } from './externalTransaction.service';
 
 @Processor('extTransactions', { concurrency: 1})
-export class TransactionProcessor extends WorkerHost {
-  private readonly logger = new Logger(TransactionProcessor.name);
+export class ExternalTransactionProcessor extends WorkerHost {
+  private readonly logger = new Logger(ExternalTransactionProcessor.name);
   constructor(
     private readonly extTransactionService: ExternalTransactionService, // Inject TransactionService
   ) {
@@ -33,6 +33,10 @@ export class TransactionProcessor extends WorkerHost {
     // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     // await delay(5000);
-    // await this.extTransactionService.requestTransaction(data);
+    await this.extTransactionService.processTransaction(data.customer_no, data.code, data.ref_id, data.batch_id, data.profit);
+
+    // customer_no: x.customer_no,
+    // code: x.code,
+    // batch_id: batch.batch_id
   }
 }

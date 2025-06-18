@@ -66,6 +66,7 @@ model Owner {
   updatedAt  DateTime @default(now()) @updatedAt
   createdBy  Int?
   percentage Int?
+  percentageExt Int?
   user       User?    @relation(fields: [createdBy], references: [id])
 }
 
@@ -222,7 +223,7 @@ model ExternalProduct {
   createdBy                    Int?
   createdAt                    DateTime                       @default(now())
   updatedAt                    DateTime                       @default(now()) @updatedAt
-  ExtProductToSupplierJunction ExtProductToSupplierJunction[]
+  products ExtProductToSupplierJunction[]
   user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
 }
 

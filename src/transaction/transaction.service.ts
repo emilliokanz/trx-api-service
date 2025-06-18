@@ -376,7 +376,7 @@ export class TransactionService {
         setProfit = transaction.profit || 0
       }
 
-      const profit = await this.owner.divideOwnerProfit(setProfit);
+      const profit = await this.owner.divideOwnerProfit(setProfit, 'INT');
       this.logger.debug("Received Profit", profit)
       // const updateUserBalance = await this.balance.createBalanceHistory({
       //   username: transaction.customer_username ?? '',

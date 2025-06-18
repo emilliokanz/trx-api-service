@@ -16,4 +16,4 @@ import { ExtenalAuthService } from './externalAuth.service';
   controllers: [ExternalAuthController],
   exports: [ExtenalAuthService],
 })
-export class AuthModule {}
+export class ExternalAuthModule {}

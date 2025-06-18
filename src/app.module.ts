@@ -11,6 +11,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { FastifyAdapter } from '@bull-board/fastify';
 import { BalanceHistoryModule } from './balanceHistory/balanceHistory.module';
 import { ExternalProductModule } from './externalProduct/externalProduct.module';
+import { ExternalAuthModule } from './externalAuth/externalAuth.module';
 
 
 @Module({
@@ -20,6 +21,7 @@ import { ExternalProductModule } from './externalProduct/externalProduct.module'
     OwnerModule,
     ProductModule,
     ExternalProductModule,
+    ExternalAuthModule,
     AuthModule,
     PrismaModule,
     BalanceHistoryModule,

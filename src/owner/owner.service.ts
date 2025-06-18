@@ -76,17 +76,26 @@ export class OwnerService {
     return await this.prisma.owner.findMany()
   }
 
-  async divideOwnerProfit(profit: number) {
+  async divideOwnerProfit(profit: number, type: string) {
+
     const owners = await this.getAllOwners()
     if (owners.length > 0) {
       owners.forEach(async(x) => {
-        if(x.percentage){
+        let percentage = 0
+     
+        if(x.percentage || x.percentageExt){
+          if(type == 'INT'){
+            percentage = x.percentage || 0
+          }
+          if(type == 'EXT'){
+            percentage = x.percentageExt || 0
+          }
           await this.prisma.owner.update({
             where: {
               id: x.id
             },
             data: {
-              balance: {increment: Math.floor(profit * (x.percentage / 100))},
+              balance: {increment: Math.floor(profit * (percentage / 100))},
             },
           });
         }
@@ -96,7 +105,7 @@ export class OwnerService {
     return null;
   }
 
-  async decrementOwnerProfit(profit: number) {
+  async decrementOwnerProfit(profit: number, type: string) {
     const owners = await this.getAllOwners()
     if (owners.length > 0) {
       owners.forEach(async(x) => {

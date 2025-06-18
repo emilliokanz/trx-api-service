@@ -3,6 +3,9 @@ import { IsNotEmpty } from 'class-validator';
 
 export class ExternalTxRequestDto {
     @IsNotEmpty()
+    username: string
+
+    @IsNotEmpty()
     code: string
 
     @IsNotEmpty()

@@ -20,7 +20,7 @@ export class ExtenalAuthService {
       where: { username: payload.username },
     });
 
-    if (!user) {
+    if (user.length == 0) {
       return new ApiResponseDto(errorMap[1000], null, "1000")
     }
 
@@ -36,9 +36,8 @@ export class ExtenalAuthService {
       role: user[0].role,
     };
 
-    return {
-      access_token: await this.jwtService.signAsync(jwtPayload),
-    };
+
+    return new ApiResponseDto("success",  {access_token: await this.jwtService.signAsync(jwtPayload)}, "0000")
   }
 
   async signUp(payload: any) {
@@ -47,10 +46,7 @@ export class ExtenalAuthService {
     });
 
     if (findUser[0]) {
-      return new HttpException(
-        'Username has been used',
-        HttpStatus.BAD_REQUEST,
-      );
+      return new ApiResponseDto(errorMap[1003], null, "1003")
     }
 
     const hashedPassword = await hash(payload.password);
@@ -80,19 +76,13 @@ export class ExtenalAuthService {
     });
 
     if (!user) {
-      return new HttpException(
-        'Username or Password is wrong',
-        HttpStatus.BAD_REQUEST,
-      );
+      return new ApiResponseDto(errorMap[1000], null, "1003")
     }
 
     const comparePassword = await hash(user[0].password || '');
 
     if (!comparePassword) {
-      return new HttpException(
-        'Username or Password is wrong',
-        HttpStatus.BAD_REQUEST,
-      );
+      return new ApiResponseDto(errorMap[1000], null, "1003")
     }
 
     const jwtPayload = {
@@ -112,7 +102,7 @@ export class ExtenalAuthService {
       });
   
       if (!findUser) {
-        return new HttpException('User not found', HttpStatus.BAD_REQUEST);
+        return new ApiResponseDto(errorMap[1004], null, "1004")
       }
   
       const apiKey = uuid.v4(); // Generates a random UUID
@@ -125,10 +115,7 @@ export class ExtenalAuthService {
           apiKey: hashApiKey,
         },
       });
-  
-      return {
-        message: 'updated',
-        data: { apiKey },
-      };
+
+      return new ApiResponseDto('success',{ apiKey }, '0000')
     }
 }

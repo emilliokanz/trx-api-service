@@ -14,6 +14,8 @@ import { SchedulerProcessor } from 'src/scheduler/scheduler.processor';
 import { ProductService } from 'src/product/product.service';
 import { ExternalTransactionService } from 'src/externalTransaction/externalTransaction.service';
 import { ExternalTransactionController } from 'src/externalTransaction/externalTransaction.controller';
+import { ExternalTransactionProcessor } from 'src/externalTransaction/externalTransaction.processor';
+import { ExternalProductService } from 'src/externalProduct/externalProduct.service';
 
 
 @Module({
@@ -73,7 +75,9 @@ import { ExternalTransactionController } from 'src/externalTransaction/externalT
     OwnerService,
     BalanceHistoryService,
     ProductService,
-    ExternalTransactionService
+    ExternalTransactionService,
+    ExternalTransactionProcessor,
+    ExternalProductService
   ], exports: [
     BullModule,
     PrismaService, TransactionService, OwnerService, BalanceHistoryService,
