@@ -14,6 +14,8 @@ import { productToDbMapper } from "./mapper/productToDbMapper";
 import { TransactionStatus } from "src/transaction/transactionIface";
 import { OwnerService } from "src/owner/owner.service";
 import { ExternalProductService } from "src/externalProduct/externalProduct.service";
+import { take } from "rxjs";
+import PaginationIface from "src/interface/paginationIface";
 
 @Injectable()
 export class ExternalTransactionService {
@@ -93,7 +95,7 @@ export class ExternalTransactionService {
     if (Array.isArray(customer_no)) {
       const seen = new Set<string>();
       const duplicates = new Set<string>();
-    
+
       customer_no.forEach(no => {
         if (seen.has(no)) {
           duplicates.add(no);
@@ -101,7 +103,7 @@ export class ExternalTransactionService {
           seen.add(no);
         }
       });
-    
+
       if (duplicates.size > 0) {
         return new ApiResponseDto(errorMap[4006], null, '4006')
 
@@ -165,7 +167,7 @@ export class ExternalTransactionService {
 
     const txDetails: any[] = []
 
-    customer_no.forEach((x) => {    
+    customer_no.forEach((x) => {
       const ref_id = generateReferenceId()
       junctionProduct.forEach((product) => {
         if (product.qty > 1) {
@@ -195,7 +197,7 @@ export class ExternalTransactionService {
   }
 
   async processTransaction(customer_no: string, code: string, ref_id: string, batchId: string, profit: number) {
-    let response : any = {};
+    let response: any = {};
 
 
     const sign = generateSignature(
@@ -220,7 +222,7 @@ export class ExternalTransactionService {
         console.log(error.response?.data);
         response = error.response;
       }
-      
+
 
       const transaction = response.data?.data;
       console.log(transaction, "transaction response")
@@ -282,7 +284,9 @@ export class ExternalTransactionService {
         )
       );
 
-      return new ApiResponseDto("success", products, '0000')
+      const dbProduct = await this.prisma.externalSupplierProduct.findMany()
+
+      return new ApiResponseDto("success", dbProduct, '0000')
     } catch (e: any) {
       console.error('Error during product list fetch or insert:', e?.response?.data || e.message || e);
       return []; // return something to avoid undefined
@@ -310,102 +314,132 @@ export class ExternalTransactionService {
   }
 
   async getPaymentTransactionStatus(ref_id: string) {
-      const transaction = await this.prisma.externalTransactionHistory.findFirst({
-        where: {
-          ref_id
-        }
-      })
-      const product = await this.prisma.externalSupplierProduct.findUnique({
-        where: {
-          code: transaction?.buyer_sku_code
-        }
-      })
-  
-      if (!transaction) {
-        return new ApiResponseDto(errorMap[4004], null, '4004')
+    const transaction = await this.prisma.externalTransactionHistory.findFirst({
+      where: {
+        ref_id
       }
-  
-      const checkTransactionDate =
-        transaction.createdAt.getTime() + 7.776e9 - 300000 <= Date.now();
-  
-      const checkTransactionStatus = [
-        TransactionStatus.SUCCESS.toString(),
-        TransactionStatus.FAILED.toString(),
-      ].includes(transaction.status || '');
-  
-      if (checkTransactionStatus) {
-        return transaction;
+    })
+    const product = await this.prisma.externalSupplierProduct.findUnique({
+      where: {
+        code: transaction?.buyer_sku_code
       }
-  
-      if (checkTransactionDate) {
-        return new ApiResponseDto(errorMap[4005], null, '4005')
-      }
-  
-      const body = {
-        username: process.env.BLUESTUCK_USERNAME,
-        code: transaction.buyer_sku_code,
-        customer_no: transaction.customer_no,
-        ref_id: transaction.ref_id,
-        sign: transaction.sign
-      };
-  
-      const response = await this.httpAgentPost(
-        body,
-        'api/transaction',
-      );
-  
-      const trxStatus = response.data.data.status
-  
-      const update = await this.prisma.externalTransactionHistory.update({
-        where: { ref_id },
-        data: { status: trxStatus },
-      });
-  
-      if (trxStatus == TransactionStatus.SUCCESS.toString()) {
-        const profit = await this.owner.divideOwnerProfit(update.profit || 0, 'EXT');
-        console.debug("Received Profit", update.profit)
-        // const updateUserBalance = await this.balance.createBalanceHistory({
-        //   username: transaction.customer_username ?? '',
-        //   af_balance: transaction.customer?.balance ?? 0,
-        //   bf_balance: (transaction.customer?.balance ?? 0) + (transaction.item_price ?? 0),
-        //   amount: transaction.item_price ?? 0,
-        //   customerId: transaction.customer?.id ?? 0,
-        //   name: transaction.customer?.name ?? '',
-        //   ref_id,
-        //   type: 'Transaction'
-        // })
-        // console.debug("Update customer balance", updateUserBalance)
-      }
-  
-      // if (trxStatus == TransactionStatus.FAILED.toString()) {
-      //   await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
-      // }
-  
-      return update;
+    })
+
+    if (!transaction) {
+      return new ApiResponseDto(errorMap[4004], null, '4004')
     }
 
-    async updateAllTxTStatus(){
-      const data = await this.prisma.externalTransactionHistory.findMany({
-        where: {
-          status: TransactionStatus.PENDING
+    const checkTransactionDate =
+      transaction.createdAt.getTime() + 7.776e9 - 300000 <= Date.now();
+
+    const checkTransactionStatus = [
+      TransactionStatus.SUCCESS.toString(),
+      TransactionStatus.FAILED.toString(),
+    ].includes(transaction.status || '');
+
+    if (checkTransactionStatus) {
+      return transaction;
+    }
+
+    if (checkTransactionDate) {
+      return new ApiResponseDto(errorMap[4005], null, '4005')
+    }
+
+    const body = {
+      username: process.env.BLUESTUCK_USERNAME,
+      code: transaction.buyer_sku_code,
+      customer_no: transaction.customer_no,
+      ref_id: transaction.ref_id,
+      sign: transaction.sign
+    };
+
+    const response = await this.httpAgentPost(
+      body,
+      'api/transaction',
+    );
+
+    const trxStatus = response.data.data.status
+
+    const update = await this.prisma.externalTransactionHistory.update({
+      where: { ref_id },
+      data: { status: trxStatus },
+    });
+
+    if (trxStatus == TransactionStatus.SUCCESS.toString()) {
+      const profit = await this.owner.divideOwnerProfit(update.profit || 0, 'EXT');
+      console.debug("Received Profit", update.profit)
+      // const updateUserBalance = await this.balance.createBalanceHistory({
+      //   username: transaction.customer_username ?? '',
+      //   af_balance: transaction.customer?.balance ?? 0,
+      //   bf_balance: (transaction.customer?.balance ?? 0) + (transaction.item_price ?? 0),
+      //   amount: transaction.item_price ?? 0,
+      //   customerId: transaction.customer?.id ?? 0,
+      //   name: transaction.customer?.name ?? '',
+      //   ref_id,
+      //   type: 'Transaction'
+      // })
+      // console.debug("Update customer balance", updateUserBalance)
+    }
+
+    // if (trxStatus == TransactionStatus.FAILED.toString()) {
+    //   await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
+    // }
+
+    return update;
+  }
+
+  async updateAllTxTStatus() {
+    const data = await this.prisma.externalTransactionHistory.findMany({
+      where: {
+        status: TransactionStatus.PENDING
+      }
+    })
+    const updatedIds: string[] = []
+    data.forEach(async (x) => {
+      if (x.status == TransactionStatus.PENDING) {
+        try {
+          const statusFetch = await this.getPaymentTransactionStatus(x.ref_id)
+          updatedIds.push(x.ref_id)
+          console.log(statusFetch)
+        } catch (e) {
+          console.log(e)
+          console.error(`failed fetching status, refID : ${x.ref_id}`)
         }
-      })
-      const updatedIds: string[] = []
-      data.forEach(async(x) => {
-          if(x.status == TransactionStatus.PENDING){
-            try{
-              const statusFetch = await this.getPaymentTransactionStatus(x.ref_id)
-              updatedIds.push(x.ref_id)
-              console.log(statusFetch)
-            }catch(e){
-              console.log(e)
-              console.error(`failed fetching status, refID : ${x.ref_id}`)
+      }
+    })
+
+    return updatedIds
+  }
+
+  async getAllTxHistoryByBatch(page: number, size: number) {
+    const data = await this.prisma.externalTransactionBatch.findMany({
+      skip: page - 1,
+      take: size,
+      where: {
+        transaction: {
+          every: {
+            createdBy: {
+              not: null
             }
           }
-      })
-  
-      return updatedIds
-    }
+        }
+      },
+      include: {
+        transaction: true
+      }
+    })
+
+    const totalData = await this.prisma.externalTransactionBatch.count()
+
+    const paginationData: PaginationIface = {
+      data,
+      totalData,
+      page,
+      pageLength: Math.ceil(totalData / size),
+    };
+
+    return new ApiResponseDto('success', paginationData, '0000')
+  }
 
   async httpAgentPost(requestBody: any, url: string) {
     const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
