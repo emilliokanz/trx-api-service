@@ -385,7 +385,11 @@ export class ExternalTransactionService {
     }
 
     async updateAllTxTStatus(){
-      const data = await this.prisma.externalTransactionHistory.findMany()
+      const data = await this.prisma.externalTransactionHistory.findMany({
+        where: {
+          status: TransactionStatus.PENDING
+        }
+      })
       const updatedIds: string[] = []
       data.forEach(async(x) => {
           if(x.status == TransactionStatus.PENDING){

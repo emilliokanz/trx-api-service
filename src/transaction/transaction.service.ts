@@ -195,7 +195,11 @@ export class TransactionService {
   }
   
   async updateAllTxTStatus(){
-    const data = await this.prisma.transactionHistory.findMany()
+    const data = await this.prisma.transactionHistory.findMany({
+      where: {
+        status: TransactionStatus.PENDING
+      }
+    })
     const updatedIds: string[] = []
     data.forEach(async(x) => {
         if(x.status == TransactionStatus.PENDING){
