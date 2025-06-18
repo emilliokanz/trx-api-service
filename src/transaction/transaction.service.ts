@@ -195,7 +195,11 @@ export class TransactionService {
   }
   
   async updateAllTxTStatus(){
-    const data = await this.prisma.transactionHistory.findMany()
+    const data = await this.prisma.transactionHistory.findMany({
+      where: {
+        status: TransactionStatus.PENDING
+      }
+    })
     const updatedIds: string[] = []
     data.forEach(async(x) => {
         if(x.status == TransactionStatus.PENDING){
@@ -376,7 +380,7 @@ export class TransactionService {
         setProfit = transaction.profit || 0
       }
 
-      const profit = await this.owner.divideOwnerProfit(setProfit);
+      const profit = await this.owner.divideOwnerProfit(setProfit, 'INT');
       this.logger.debug("Received Profit", profit)
       // const updateUserBalance = await this.balance.createBalanceHistory({
       //   username: transaction.customer_username ?? '',

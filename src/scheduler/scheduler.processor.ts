@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { ExternalTransactionService } from 'src/externalTransaction/externalTransaction.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 
 @Processor('scheduledJobs', { concurrency: 1})
@@ -8,6 +9,7 @@ export class SchedulerProcessor extends WorkerHost {
   private readonly logger = new Logger(SchedulerProcessor.name);
   constructor(
     private readonly transactionService: TransactionService, // Inject TransactionService
+    private readonly extTransactionService: ExternalTransactionService
   ) {
     super();
   }
@@ -33,6 +35,7 @@ export class SchedulerProcessor extends WorkerHost {
     if(process.env.NODE_ENV !== 'dev'){
       await this.transactionService.updateAllTxTStatus()
       await this.transactionService.getItemkuOrderList();
+      await this.extTransactionService.updateAllTxTStatus()
     }
   }
 }
