@@ -51,6 +51,10 @@ jobs:
             sudo rm -r redis_data
       
             git pull origin main
+
+            npx prisma migrate deploy
+            
+            npx prisma generate
       
             npm install
             npm run build

@@ -12,6 +12,10 @@ import { BalanceHistoryService } from 'src/balanceHistory/balanceHistory.service
 import { SchedulerService } from 'src/scheduler/scheduler.service';
 import { SchedulerProcessor } from 'src/scheduler/scheduler.processor';
 import { ProductService } from 'src/product/product.service';
+import { ExternalTransactionService } from 'src/externalTransaction/externalTransaction.service';
+import { ExternalTransactionController } from 'src/externalTransaction/externalTransaction.controller';
+import { ExternalTransactionProcessor } from 'src/externalTransaction/externalTransaction.processor';
+import { ExternalProductService } from 'src/externalProduct/externalProduct.service';
 
 
 @Module({
@@ -39,8 +43,20 @@ import { ProductService } from 'src/product/product.service';
         removeOnFail: false,
       },
     }),
+    BullModule.registerQueue({
+      name: 'extTransactions',
+      defaultJobOptions: {
+        delay: 1000,
+        removeOnComplete: false,
+        removeOnFail: false,
+      },
+    }),
     BullBoardModule.forFeature({
       name: 'userTransactions', 
+      adapter: BullMQAdapter,
+    }),
+    BullBoardModule.forFeature({
+      name: 'extTransactions', 
       adapter: BullMQAdapter,
     }),
     BullBoardModule.forFeature({
@@ -48,7 +64,7 @@ import { ProductService } from 'src/product/product.service';
       adapter: BullMQAdapter,
     }),
   ],
-  controllers: [TransactionController],
+  controllers: [TransactionController, ExternalTransactionController],
   providers: [
     TransactionService,
     TransactionProcessor,
@@ -58,7 +74,10 @@ import { ProductService } from 'src/product/product.service';
     CustomerService,
     OwnerService,
     BalanceHistoryService,
-    ProductService
+    ProductService,
+    ExternalTransactionService,
+    ExternalTransactionProcessor,
+    ExternalProductService
   ], exports: [
     BullModule,
     PrismaService, TransactionService, OwnerService, BalanceHistoryService,
