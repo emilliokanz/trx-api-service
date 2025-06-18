@@ -384,6 +384,25 @@ export class ExternalTransactionService {
       return update;
     }
 
+    async updateAllTxTStatus(){
+      const data = await this.prisma.externalTransactionHistory.findMany()
+      const updatedIds: string[] = []
+      data.forEach(async(x) => {
+          if(x.status == TransactionStatus.PENDING){
+            try{
+              const statusFetch = await this.getPaymentTransactionStatus(x.ref_id)
+              updatedIds.push(x.ref_id)
+              console.log(statusFetch)
+            }catch(e){
+              console.log(e)
+              console.error(`failed fetching status, refID : ${x.ref_id}`)
+            }
+          }
+      })
+  
+      return updatedIds
+    }
+
   async httpAgentPost(requestBody: any, url: string) {
     const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
 
