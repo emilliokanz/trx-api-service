@@ -52,4 +52,12 @@ export class ExternalTransactionController {
     async getPaymentTxStatus(@Body() payload: {ref_id: string}){
         return await this.extTrxService.getPaymentTransactionStatus(payload.ref_id)
     }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])
+    @Post('/history')
+    @HttpCode(200)
+    async getTxHistory(@Body() payload: any){
+        return await this.extTrxService.getAllTxHistoryByBatch(payload.page, payload.size)
+    }
 }
