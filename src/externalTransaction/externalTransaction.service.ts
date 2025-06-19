@@ -148,11 +148,11 @@ export class ExternalTransactionService {
     const txDetails: any[] = []
 
     customer_no.forEach((x) => {
-      const ref_id = generateReferenceId()
       junctionProduct.forEach((product) => {
         if (product.qty > 1) {
           const profit = (extProduct.price - (product.product.price * product.qty)) / product.qty
           for (let i = 0; i < product.qty; i++) {
+            const ref_id = generateReferenceId()
             txDetails.push({
               ref_id,
               customer_no: x,
@@ -162,6 +162,7 @@ export class ExternalTransactionService {
           }
         } else {
           const profit = extProduct.price - product.product.price
+          const ref_id = generateReferenceId()
           txDetails.push({
             ref_id,
             customer_no: x,
