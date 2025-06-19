@@ -68,7 +68,6 @@ export class ExternalTransactionService {
           message: `Transaction in process`,
         })
       })
-
     }
 
     return new ApiResponseDto('sucess', null, '0000')
@@ -89,25 +88,6 @@ export class ExternalTransactionService {
 
     if (customer_no.length == 0) {
       return new ApiResponseDto(errorMap[4000] + 'customer_no', null, '4000')
-    }
-
-
-    if (Array.isArray(customer_no)) {
-      const seen = new Set<string>();
-      const duplicates = new Set<string>();
-
-      customer_no.forEach(no => {
-        if (seen.has(no)) {
-          duplicates.add(no);
-        } else {
-          seen.add(no);
-        }
-      });
-
-      if (duplicates.size > 0) {
-        return new ApiResponseDto(errorMap[4006], null, '4006')
-
-      }
     }
 
     const findUser = await this.prisma.externalUser.findMany({
@@ -172,7 +152,7 @@ export class ExternalTransactionService {
       junctionProduct.forEach((product) => {
         if (product.qty > 1) {
           const profit = (extProduct.price - (product.product.price * product.qty)) / product.qty
-          for (let i = 1; i <= product.qty; i++) {
+          for (let i = 0; i < product.qty; i++) {
             txDetails.push({
               ref_id,
               customer_no: x,

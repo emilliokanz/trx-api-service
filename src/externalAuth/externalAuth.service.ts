@@ -5,6 +5,7 @@ import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 import { errorMap } from 'src/lib/errorCodes';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as uuid from 'uuid';
+import * as bcrypt from 'bcrypt'
 
 import hash from 'src/utils/hash';
 
@@ -20,11 +21,13 @@ export class ExtenalAuthService {
       where: { username: payload.username },
     });
 
+    console.log(user, "user")
+
     if (user.length == 0) {
       return new ApiResponseDto(errorMap[1000], null, "1000")
     }
 
-    const comparePassword = await hash(user[0].password);
+    const comparePassword = await bcrypt.compare(payload.password, user[0].password);
 
     if (!comparePassword) {
       return new ApiResponseDto(errorMap[1000], null, "1000")

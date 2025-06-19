@@ -58,26 +58,24 @@ export class ExternalProductService {
 
 
         if (payload.products) {
-            payload.products.forEach(async (x) => {
-                let qty = x.qty !== 0 ? x.qty : 1
+            // Delete existing records for the item_id
+            await this.prisma.extProductToSupplierJunction.deleteMany({
+                where: {
+                    item_id: product.item_id
+                }
+            });
 
-                await this.prisma.extProductToSupplierJunction.upsert({
-                    where: {
-                        product_id_item_id: {
-                            item_id: product.item_id,
-                            product_id: x.product_id
-                        }
-                    },
-                    create: {
-                        item_id: product.item_id,
-                        product_id: x.product_id,
-                        qty
-                    },
-                    update: {
-                        qty
-                    },
-                })
-            })
+            // Prepare new records
+            const createData = payload.products.map(x => ({
+                item_id: product.item_id,
+                product_id: x.product_id,
+                qty: x.qty !== 0 ? x.qty : 1
+            }));
+
+            // Insert all new records
+            await this.prisma.extProductToSupplierJunction.createMany({
+                data: createData
+            });
         }
 
         const updatedProduct = await this.prisma.externalProduct.findFirst({
@@ -96,64 +94,64 @@ export class ExternalProductService {
         return result;
     }
 
-  async findProductById(item_id: string) {
-    const findProduct = await this.prisma.externalProduct.findMany({
-      where: {
-        item_id
-      },
-    });
+    async findProductById(item_id: string) {
+        const findProduct = await this.prisma.externalProduct.findMany({
+            where: {
+                item_id
+            },
+        });
 
-    if (!findProduct) {
-        return new ApiResponseDto(errorMap[2000], null, '2000')
-    }
-
-    return findProduct[0];
-  }
-
-
-  async findProducts(page: number, take: number, filter: any) {
-    const where: any = {};
-
-    if (filter?.item_id) {
-      where.item_id = filter.item_id;
-    }
-  
-    if (filter?.game_name) {
-      where.game_name = filter.game_name;
-    }
-  
-    if (filter?.item_name) {
-      where.item_name = filter.item_name;
-    }
-  
-    if (filter?.price != null) {
-      where.price = filter.price;
-    }
-
-    const data = await this.prisma.externalProduct.findMany({
-      skip: page - 1,
-      take,
-      where,
-      include: {
-        products: {
-            include: {
-                product: true
-            }
+        if (!findProduct) {
+            return new ApiResponseDto(errorMap[2000], null, '2000')
         }
-      }
-    });
 
-    const totalData = await this.prisma.externalProduct.count({
-        where
-    });
+        return findProduct[0];
+    }
 
-    const paginationData: PaginationIface = {
-      data,
-      totalData,
-      page,
-      pageLength: Math.ceil(totalData / take),
-    };
 
-    return paginationData;
-  }
+    async findProducts(page: number, take: number, filter: any) {
+        const where: any = {};
+
+        if (filter?.item_id) {
+            where.item_id = filter.item_id;
+        }
+
+        if (filter?.game_name) {
+            where.game_name = filter.game_name;
+        }
+
+        if (filter?.item_name) {
+            where.item_name = filter.item_name;
+        }
+
+        if (filter?.price != null) {
+            where.price = filter.price;
+        }
+
+        const data = await this.prisma.externalProduct.findMany({
+            skip: page - 1,
+            take,
+            where,
+            include: {
+                products: {
+                    include: {
+                        product: true
+                    }
+                }
+            }
+        });
+
+        const totalData = await this.prisma.externalProduct.count({
+            where
+        });
+
+        const paginationData: PaginationIface = {
+            data,
+            totalData,
+            page,
+            pageLength: Math.ceil(totalData / take),
+        };
+
+        return paginationData;
+    }
 }
