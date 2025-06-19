@@ -11,6 +11,7 @@ export interface CreateExtProduct {
 }
 
  interface ExtProductJunction {
+    item_id?: string
     product_id: number,
     qty: number
 }

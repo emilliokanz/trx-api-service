@@ -22,7 +22,7 @@ import { ExternalProductService } from 'src/externalProduct/externalProduct.serv
   imports: [
     BullModule.forRoot({
       connection: {
-        host: 'localhost',
+        host: '103.127.97.47',
         port: 6380,
         password: 'your_secure_password',
       },
