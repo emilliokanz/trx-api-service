@@ -15,22 +15,20 @@ export class ExternalProductController {
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin, Roles.SuperAdmin])@Post('/create')
     async create(@Body() payload: CreateExtProduct[]) {
-        const data = await this.extProductService.createProduct(payload)
-        return new ApiResponseDto("success", data, '0000')
+        return await this.extProductService.createProduct(payload)
     }
+
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin, Roles.SuperAdmin])
     @Post('/update')
     async update(@Body() payload: CreateExtProduct) {
-        const data = await this.extProductService.updateProduct(payload)
-        return new ApiResponseDto("success", data, '0000')
+        return await this.extProductService.updateProduct(payload)
     }
 
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin, Roles.SuperAdmin])
     @Post('/get-list')
     async getAll(@Body() payload: any) {
-        const data = await this.extProductService.findProducts(payload.page, payload.size, payload.filter)
-        return new ApiResponseDto("success", data, '0000')
+        return await this.extProductService.findProducts(payload.page, payload.size, payload.filter)
     }
 }
