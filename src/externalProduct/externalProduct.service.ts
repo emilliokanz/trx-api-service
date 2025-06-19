@@ -92,7 +92,7 @@ export class ExternalProductService {
 
             const sPrice = 0
 
-            payload.products.forEach(async (x) => {
+          for(const x of payload.products) {
                 const product = await this.prisma.externalSupplierProduct.findFirst({
                     where: {
                         id: x.product_id
@@ -104,9 +104,7 @@ export class ExternalProductService {
                 }
 
                 sPrice + (product.price * x.qty)
-            })
-
-            console.log(sPrice, payload.price)
+            }
 
             if (payload.price <= sPrice) {
                 return new ApiResponseDto(errorMap[2001], null, '2001')
