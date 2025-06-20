@@ -392,34 +392,72 @@ export class ExternalTransactionService {
     return updatedIds
   }
 
-  async getAllTxHistoryByBatch(page: number, size: number) {
+  async getAllTxHistoryByBatch(
+    page: number,
+    size: number,
+    customer_no: string,
+    start_date: string,
+    end_date: string,
+    batch_id: string,
+    ref_id: string
+  ) {
+    const where: any = {
+      transaction: {
+        some: {}
+      }
+    };
+
+    if (customer_no !== '') {
+      where.transaction.some.customer_no = customer_no;
+    }
+
+    if (start_date !== '' && end_date !== '') {
+      where.transaction.some.createdAt = {
+        gte: new Date(start_date),
+        lte: new Date(end_date)
+      };
+    } else if (start_date !== '') {
+      where.transaction.some.createdAt = {
+        gte: new Date(start_date)
+      };
+    } else if (end_date !== '') {
+      where.transaction.some.createdAt = {
+        lte: new Date(end_date)
+      };
+    }
+
+    if (batch_id !== '') {
+      where.batch_id = batch_id;
+    }
+
+    if (ref_id !== '') {
+      where.transaction.some.ref_id = ref_id;
+    }
+
     const data = await this.prisma.externalTransactionBatch.findMany({
-      skip: page - 1,
+      skip: (page - 1) * size,
       take: size,
-      where: {
-        transaction: {
-          every: {
-            createdBy: {
-              not: null
-            }
-          }
-        }
+      orderBy: {
+        createdAt: 'desc'
       },
       include: {
         transaction: true
-      }
-    })
+      },
+      where
+    });
 
-    const totalData = await this.prisma.externalTransactionBatch.count()
+    const totalData = await this.prisma.externalTransactionBatch.count({
+      where
+    });
 
     const paginationData: PaginationIface = {
       data,
       totalData,
       page,
-      pageLength: Math.ceil(totalData / size),
+      pageLength: Math.ceil(totalData / size)
     };
 
-    return new ApiResponseDto('success', paginationData, '0000')
+    return new ApiResponseDto('success', paginationData, '0000');
   }
 
   async httpAgentPost(requestBody: any, url: string) {

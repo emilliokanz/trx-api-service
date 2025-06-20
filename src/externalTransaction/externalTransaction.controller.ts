@@ -11,28 +11,28 @@ import { Roles } from "@prisma/client";
 
 @Controller('/api/v1/tx')
 export class ExternalTransactionController {
-    constructor(private extTrxService: ExternalTransactionService){}
+    constructor(private extTrxService: ExternalTransactionService) { }
 
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin, Roles.SuperAdmin])
     @Post('/get-product')
     @HttpCode(200)
-    async getProductList(){
+    async getProductList() {
         return await this.extTrxService.getProductList()
     }
 
     @Post('/request')
     @HttpCode(200)
-    async requestTransaction(@Body() payload: ExternalTxRequestDto, @Req() req:any){
-        
+    async requestTransaction(@Body() payload: ExternalTxRequestDto, @Req() req: any) {
+
         const apiKey = req.headers['api-key'];
 
         const { errors, dto } = await validateDto(ExternalTxRequestDto, payload);
 
         if (errors.length > 0) {
-          return new ApiResponseDto(errorMap[4001], null, '4001');
+            return new ApiResponseDto(errorMap[4001], null, '4001');
         }
-        
+
         return await this.extTrxService.addTransaction(payload, apiKey)
     }
 
@@ -41,7 +41,7 @@ export class ExternalTransactionController {
     @UserRoles([Roles.SuperAdmin])
     @Post('/admin-balance')
     @HttpCode(200)
-    async getAdminBalance(){
+    async getAdminBalance() {
         return await this.extTrxService.getAdminBalanceFn()
     }
 
@@ -49,7 +49,7 @@ export class ExternalTransactionController {
     @UserRoles([Roles.SuperAdmin])
     @Post('/status')
     @HttpCode(200)
-    async getPaymentTxStatus(@Body() payload: {ref_id: string}){
+    async getPaymentTxStatus(@Body() payload: { ref_id: string }) {
         return await this.extTrxService.getPaymentTransactionStatus(payload.ref_id)
     }
 
@@ -57,7 +57,15 @@ export class ExternalTransactionController {
     @UserRoles([Roles.SuperAdmin])
     @Post('/history')
     @HttpCode(200)
-    async getTxHistory(@Body() payload: any){
-        return await this.extTrxService.getAllTxHistoryByBatch(payload.page, payload.size)
+    async getTxHistory(@Body() payload: any) {
+        return await this.extTrxService.getAllTxHistoryByBatch(
+            payload.page || '', 
+            payload.size || '', 
+            payload.customer_no || '', 
+            payload.start_date || '', 
+            payload.end_date || '', 
+            payload.batch_id || '', 
+            payload.ref_id || ''
+        )
     }
 }
