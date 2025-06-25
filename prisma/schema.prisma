@@ -146,6 +146,9 @@ model ExternalUser {
   role                       Roles
   apiKey                     String?
   isCustomer                 Boolean
+  phoneNumber                String?
+  email                      String?
+  referalCode                String?
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime                     @default(now()) @updatedAt
   externalAdminUsersUserId   Int?
@@ -259,6 +262,7 @@ model ExtProductToSupplierJunction {
 
   @@id([product_id, item_id])
 }
+
 
 enum Roles {
   Admin

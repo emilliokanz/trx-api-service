@@ -456,13 +456,70 @@ export class ExternalTransactionService {
       orderBy: {
         createdAt: 'desc'
       },
-      include: {
-        transaction: true
-      },
       where
     });
 
     const totalData = await this.prisma.externalTransactionBatch.count({
+      where
+    });
+
+    const paginationData: PaginationIface = {
+      data,
+      totalData,
+      page,
+      pageLength: Math.ceil(totalData / size)
+    };
+
+    return new ApiResponseDto('success', paginationData, '0000');
+  }
+
+  async getAllTxHistoryDetailByBatch(page: number,
+    size: number,
+    customer_no: string,
+    start_date: string,
+    end_date: string,
+    ref_id: string,
+  batch_id: string) {
+    const where: any = {
+    };
+
+    if (batch_id !== '') {
+      where.externalTransactionBatchBatch_id = batch_id;
+    }
+
+    if (customer_no !== '') {
+      where.customer_no = customer_no;
+    }
+
+    if (start_date !== '' && end_date !== '') {
+      where.createdAt = {
+        gte: new Date(start_date),
+        lte: new Date(end_date)
+      };
+    } else if (start_date !== '') {
+      where.createdAt = {
+        gte: new Date(start_date)
+      };
+    } else if (end_date !== '') {
+      where.createdAt = {
+        lte: new Date(end_date)
+      };
+    }
+
+    if (ref_id !== '') {
+      where.ref_id = ref_id;
+    }
+
+    const data = await this.prisma.externalTransactionHistory.findMany({
+      skip: (page - 1) * size,
+      take: size,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      where
+    });
+
+    const totalData = await this.prisma.externalTransactionHistory.count({
       where
     });
 
@@ -488,6 +545,4 @@ export class ExternalTransactionService {
 
     return response;
   }
-
-
 }
