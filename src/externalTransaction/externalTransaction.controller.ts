@@ -42,7 +42,7 @@ export class ExternalTransactionController {
     @HttpCode(200)
     async requestTransactionWeb(@Body() payload: ExternalTxRequestDto, @Req() req: any) {
 
-        const role = await this.authService.getRole(req.headers.authorization)
+        const user = await this.authService.getUserDetail(req.headers.authorization)
 
         const { errors, dto } = await validateDto(ExternalTxRequestDto, payload);
 
@@ -50,7 +50,7 @@ export class ExternalTransactionController {
             return new ApiResponseDto(errorMap[4001], null, '4001');
         }
 
-        return await this.extTrxService.addTransaction(payload, '', true, role)
+        return await this.extTrxService.addTransaction(payload, '', true, user.role)
     }
 
 
@@ -92,5 +92,21 @@ export class ExternalTransactionController {
     @HttpCode(200)
     async getTxHistoryDetail(@Body() payload: any) {
         return await this.extTrxService.getTxHistoryByBatchId(payload.batch_id)
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])
+    @Post('/transaction-detail-list')
+    @HttpCode(200)
+    async getTxHistoryDetailByBatchId(@Body() payload: any) {
+        return await this.extTrxService.getAllTxHistoryDetailByBatch(
+            payload.page || '',
+            payload.size || '',
+            payload.customer_no || '',
+            payload.start_date || '',
+            payload.end_date || '',
+            payload.ref_id || '',
+            payload.batch_id || ''
+        )
     }
 }

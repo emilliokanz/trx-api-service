@@ -135,11 +135,11 @@ export class AuthService {
     };
   }
 
-  async getRole(token:string){
+  async getUserDetail(token:string){
     const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
 
-    return payload.role
+    return payload
   }
 }

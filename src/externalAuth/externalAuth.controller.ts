@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { ExtenalAuthService } from './externalAuth.service';
 import { Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
@@ -24,5 +24,13 @@ export class ExternalAuthController {
     @Post('/api-key')
     async reqApiKey(@Body() payload: any) {
         return this.extAuthService.generateApiKey(payload.username);
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.Admin, Roles.SuperAdmin])
+    @Post('/generate-referal')
+    async reqReferal(@Req() req: any) {
+        const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+        return this.extAuthService.generateReferalCode(user.username);
     }
 }

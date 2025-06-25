@@ -14,7 +14,7 @@ export class ExtenalAuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async login(payload: any) {
     const user = await this.prisma.externalUser.findMany({
@@ -38,7 +38,7 @@ export class ExtenalAuthService {
     };
 
 
-    return new ApiResponseDto("success",  {access_token: await this.jwtService.signAsync(jwtPayload)}, "0000")
+    return new ApiResponseDto("success", { access_token: await this.jwtService.signAsync(jwtPayload) }, "0000")
   }
 
   async signUp(payload: any) {
@@ -58,11 +58,22 @@ export class ExtenalAuthService {
         name: payload.name,
         password: hashedPassword,
         role: Roles.Customer,
-        isCustomer: false,
+        isCustomer: true,
+        email: payload.email,
+        phoneNumber: payload.phoneNumber,
+        referalCode: payload.referalCode || '',
         apiKey: '',
         balance: 0
       },
     });
+
+    if (createUser && payload.referalCode !== '') {
+      try {
+        await this.addToAdminUser(payload.referalCode, createUser.id)
+      } catch (error: any) {
+        return new ApiResponseDto(errorMap[1004], null, "1004")
+      }
+    }
 
     return {
       name: createUser.name,
@@ -71,26 +82,89 @@ export class ExtenalAuthService {
     };
   }
 
-   async generateApiKey(username: string) {
-      const findUser = await this.prisma.externalUser.findMany({
-        where: { username },
-      });
-  
-      if (!findUser) {
-        return new ApiResponseDto(errorMap[1004], null, "1004")
+  async generateApiKey(username: string) {
+    const findUser = await this.prisma.externalUser.findMany({
+      where: { username },
+    });
+
+    if (!findUser) {
+      return new ApiResponseDto(errorMap[1004], null, "1004")
+    }
+
+    const apiKey = uuid.v4(); // Generates a random UUID
+
+    const hashApiKey = await hash(apiKey);
+
+    await this.prisma.externalUser.update({
+      where: { id: findUser[0].id },
+      data: {
+        apiKey: hashApiKey,
+      },
+    });
+
+    return new ApiResponseDto('success', { apiKey }, '0000')
+  }
+
+  async generateReferalCode(username: string) {
+    const referalCode = uuid.v4()
+
+    const user = await this.prisma.externalUser.findMany({
+      where: {
+        username
       }
-  
-      const apiKey = uuid.v4(); // Generates a random UUID
-  
-      const hashApiKey = await hash(apiKey);
-  
-      await this.prisma.externalUser.update({
-        where: { id: findUser[0].id },
-        data: {
-          apiKey: hashApiKey,
-        },
+    })
+
+
+    try {
+      const updateAdmin = await this.prisma.externalUser.update({
+        where: {
+          id: user[0].id
+        }, data: {
+          referalCode
+        }
+      })
+
+      return new ApiResponseDto('success', updateAdmin, "0000")
+    } catch (error: any) {
+      return new ApiResponseDto(errorMap[5000], null, "5000")
+    }
+  }
+
+  async addToAdminUser(referalCode: string, customerId: number) {
+
+    const findAdmin = this.checkReferalCode(referalCode)
+
+
+    await this.prisma.externalAdminUsers.create({
+      data: {
+        userId: findAdmin[0].id,
+        customers: {
+          connect: {
+            id: customerId
+          }
+        }
+      }
+    })
+  }
+
+  async checkReferalCode(referalCode: string) {
+    const findAdmin = await this.prisma.externalUser.findMany({
+      where: {
+        referalCode
+      }
+    })
+
+    if (findAdmin.length == 0) {
+      throw new ApiResponseDto(errorMap[1005], null, "1005")
+    }
+    return findAdmin
+  }
+
+    async getUserDetail(token:string){
+    const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET,
       });
 
-      return new ApiResponseDto('success',{ apiKey }, '0000')
-    }
+    return payload
+  }
 }
