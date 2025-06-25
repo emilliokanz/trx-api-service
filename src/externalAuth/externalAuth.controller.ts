@@ -27,10 +27,21 @@ export class ExternalAuthController {
     }
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.Admin, Roles.SuperAdmin])
+    @UserRoles([Roles.Admin])
     @Post('/generate-referal')
     async reqReferal(@Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
-        return this.extAuthService.generateReferalCode(user.username);
+        console.log(user, "user")
+        return this.extAuthService.generateReferalCode(user.id);
+    }
+
+    @Post('/check-referal')
+    async checkReferal(@Body() payload: any) {
+        return this.extAuthService.checkReferalCode(payload.referal_code);
+    }
+
+    @Post('/assign-admin')
+    async assignToAdmin(@Body() payload: any){
+        
     }
 }

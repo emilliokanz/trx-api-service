@@ -5,6 +5,7 @@ export const errorMap = {
     1003: 'username has been used',
     1004: 'user not found',
     1005: 'wrong referal code',
+    1006: 'user already assigned to admin',
     2000: 'product not found',
     2001: 'product price same or less than supplier price',
     4000: 'missing request payload' + ' ',
