@@ -19,8 +19,8 @@ export class ExternalProductService {
             })
 
 
-           for(const x of payload) {
-               let sPrice = 0
+            for (const x of payload) {
+                let sPrice = 0
 
                 for (const y of x.products) {
                     y.item_id = x.item_id
@@ -34,7 +34,7 @@ export class ExternalProductService {
                         return new ApiResponseDto(errorMap[2000], { product_id: y.product_id }, '2000')
                     }
 
-                    sPrice =  sPrice + (product.price * y.qty)
+                    sPrice = sPrice + (product.price * y.qty)
                 }
 
                 if (x.price <= sPrice) {
@@ -92,7 +92,7 @@ export class ExternalProductService {
 
             const sPrice = 0
 
-          for(const x of payload.products) {
+            for (const x of payload.products) {
                 const product = await this.prisma.externalSupplierProduct.findFirst({
                     where: {
                         id: x.product_id
@@ -174,16 +174,18 @@ export class ExternalProductService {
         }
 
         const data = await this.prisma.externalProduct.findMany({
-            skip: page - 1,
-            take,
+            ...(page > 0 && {
+                skip: (page - 1) * take,
+                take,
+            }),
             where,
             include: {
                 products: {
                     include: {
-                        product: true
-                    }
-                }
-            }
+                        product: true,
+                    },
+                },
+            },
         });
 
         const totalData = await this.prisma.externalProduct.count({
