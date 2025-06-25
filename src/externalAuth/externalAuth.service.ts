@@ -105,12 +105,12 @@ export class ExtenalAuthService {
     return new ApiResponseDto('success', { apiKey }, '0000')
   }
 
-  async generateReferalCode(username: string) {
+  async generateReferalCode(id: number) {
     const referalCode = uuid.v4()
 
     const user = await this.prisma.externalUser.findMany({
       where: {
-        username
+        id
       }
     })
 
@@ -155,7 +155,7 @@ export class ExtenalAuthService {
     })
 
     if (findAdmin.length == 0) {
-      throw new ApiResponseDto(errorMap[1005], null, "1005")
+      return new ApiResponseDto(errorMap[1005], null, "1005")
     }
     return findAdmin
   }
@@ -166,5 +166,36 @@ export class ExtenalAuthService {
       });
 
     return payload
+  }
+
+  async assignToAdminUser(referalCode: string, userId: number){
+    const admin = await this.checkReferalCode(referalCode)
+
+    if(admin instanceof ApiResponseDto){
+      return admin
+    }
+
+    const isUserAssigned = await this.prisma.externalUser.findFirst({
+      where: {
+        id: userId,
+        AND: {
+          externalAdminUsersUserId: null
+        }
+      }
+    })
+
+    if(!isUserAssigned){
+      return new ApiResponseDto(errorMap[1006], null, "1006")
+    }
+
+    const updateUser = await this.prisma.externalUser.update({
+      where: {
+        id: userId
+      }, data: {
+        externalAdminUsersUserId: admin[0].id
+      }
+    })
+
+    return updateUser
   }
 }
