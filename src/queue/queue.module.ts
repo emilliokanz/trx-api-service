@@ -16,15 +16,15 @@ import { ExternalTransactionService } from 'src/externalTransaction/externalTran
 import { ExternalTransactionController } from 'src/externalTransaction/externalTransaction.controller';
 import { ExternalTransactionProcessor } from 'src/externalTransaction/externalTransaction.processor';
 import { ExternalProductService } from 'src/externalProduct/externalProduct.service';
-
+import { AuthService } from 'src/auth/auth.service';
 
 @Module({
   imports: [
     BullModule.forRoot({
       connection: {
-        host: 'localhost',
-        port: 6380,
-        password: 'your_secure_password',
+        host: process.env.REDIS_HOST,
+        port: Number(process.env.REDIS_PORT) || 6380,
+        password: process.env.REDIS_PASSWORD,
       },
     }),
     BullModule.registerQueue({
@@ -77,7 +77,8 @@ import { ExternalProductService } from 'src/externalProduct/externalProduct.serv
     ProductService,
     ExternalTransactionService,
     ExternalTransactionProcessor,
-    ExternalProductService
+    ExternalProductService,
+    AuthService
   ], exports: [
     BullModule,
     PrismaService, TransactionService, OwnerService, BalanceHistoryService,

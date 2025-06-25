@@ -21,8 +21,6 @@ export class ExtenalAuthService {
       where: { username: payload.username },
     });
 
-    console.log(user, "user")
-
     if (user.length == 0) {
       return new ApiResponseDto(errorMap[1000], null, "1000")
     }
@@ -70,32 +68,6 @@ export class ExtenalAuthService {
       name: createUser.name,
       username: createUser.username,
       role: createUser.role,
-    };
-  }
-
-  async loginCustomer(payload: any) {
-    const user = await this.prisma.customer.findMany({
-      where: { username: payload.username },
-    });
-
-    if (!user) {
-      return new ApiResponseDto(errorMap[1000], null, "1003")
-    }
-
-    const comparePassword = await hash(user[0].password || '');
-
-    if (!comparePassword) {
-      return new ApiResponseDto(errorMap[1000], null, "1003")
-    }
-
-    const jwtPayload = {
-      id: user[0].id,
-      name: user[0].name,
-      role: Roles.Customer,
-    };
-
-    return {
-      access_token: await this.jwtService.signAsync(jwtPayload),
     };
   }
 

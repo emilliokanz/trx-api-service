@@ -26,11 +26,10 @@ export class ExternalTransactionService {
     private extProduct: ExternalProductService
   ) { }
 
-  async addTransaction(transactionData: ExternalTxRequestDto, apiKey: string) {
+  async addTransaction(transactionData: ExternalTxRequestDto, apiKey: string, isWeb?: boolean, role?: string) {
     const batch_id = "B" + generateReferenceId()
 
-    const transactionDetail: any = await this.preTransaction(transactionData, apiKey)
-    console.log(transactionDetail, "tx detail")
+    const transactionDetail: any = await this.preTransaction(transactionData, apiKey, isWeb)
 
     if (transactionDetail.errorCode) {
       return transactionDetail
@@ -73,12 +72,12 @@ export class ExternalTransactionService {
     return new ApiResponseDto('sucess', null, '0000')
   }
 
-  async preTransaction(transactionData: ExternalTxRequestDto, apiKey: string) {
+  async preTransaction(transactionData: ExternalTxRequestDto, apiKey: string, isWeb?: boolean, role?: string) {
     const { code, customer_no, username } = transactionData
 
     await this.getProductList()
 
-    if (!apiKey) {
+    if (!isWeb && !apiKey) {
       return new ApiResponseDto(errorMap[4002], null, '4002')
     }
 
@@ -100,11 +99,12 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[1004], null, '1004')
     }
 
+    if (!isWeb) {
+      const validApiKey = await bcrypt.compare(apiKey, findUser[0].apiKey || '');
 
-    const validApiKey = await bcrypt.compare(apiKey, findUser[0].apiKey || '');
-
-    if (!validApiKey) {
-      return new ApiResponseDto(errorMap[4003], null, '4003')
+      if (!validApiKey) {
+        return new ApiResponseDto(errorMap[4003], null, '4003')
+      }
     }
 
     const extProduct = await this.prisma.externalProduct.findFirst({
@@ -223,9 +223,6 @@ export class ExternalTransactionService {
           profit
         }
       })
-
-      console.log("saved tx", tx)
-
     } catch (error: any) {
       console.error(error.message)
       console.log(error.response.data)
@@ -390,6 +387,25 @@ export class ExternalTransactionService {
     })
 
     return updatedIds
+  }
+
+  async getTxHistoryByBatchId(
+    batch_id: string
+  ) {
+    const data = await this.prisma.externalTransactionBatch.findFirst({
+      where: {
+        batch_id
+      }, include: {
+        transaction: true
+      }
+    })
+
+    if (!data) {
+      return new ApiResponseDto(errorMap[4004], data, '4004');
+    }
+
+    return new ApiResponseDto('success', data, '0000');
+
   }
 
   async getAllTxHistoryByBatch(
