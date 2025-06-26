@@ -19,6 +19,9 @@ export class ExtenalAuthService {
   async login(payload: any) {
     const user = await this.prisma.externalUser.findMany({
       where: { username: payload.username },
+      include: {
+        ExternalAdminUsers: true
+      }
     });
 
     if (user.length == 0) {
@@ -31,12 +34,16 @@ export class ExtenalAuthService {
       return new ApiResponseDto(errorMap[1000], null, "1000")
     }
 
-    const jwtPayload = {
+    const jwtPayload : any = {
       id: user[0].id,
       username: user[0].username,
       name: user[0].name,
       role: user[0].role,
     };
+
+    if(user[0].role == 'Customer'){
+      jwtPayload.referal = user[0].externalAdminUsersUserId != null;
+    }
 
 
     return new ApiResponseDto("success", { access_token: await this.jwtService.signAsync(jwtPayload) }, "0000")
@@ -143,7 +150,7 @@ export class ExtenalAuthService {
     if (findAdmin.length == 0) {
       return new ApiResponseDto(errorMap[1005], null, "1005")
     }
-    return findAdmin
+    return findAdmin[0]
   }
 
   async getUserDetail(token: string) {
@@ -153,6 +160,7 @@ export class ExtenalAuthService {
 
     return user
   }
+
 
   async assignToAdminUser(referalCode: string, userId: number) {
     const admin = await this.checkReferalCode(referalCode)
@@ -178,10 +186,14 @@ export class ExtenalAuthService {
       where: {
         id: userId
       }, data: {
-        externalAdminUsersUserId: admin[0].id
+        ExternalAdminUsers: {
+          create: {
+            userId: admin.id
+          }
+        }
       }
     })
 
-    return updateUser
+      return new ApiResponseDto("success", updateUser, "0000")
   }
 }
