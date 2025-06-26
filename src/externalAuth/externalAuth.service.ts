@@ -143,7 +143,7 @@ export class ExtenalAuthService {
     if (findAdmin.length == 0) {
       return new ApiResponseDto(errorMap[1005], null, "1005")
     }
-    return findAdmin
+    return findAdmin[0]
   }
 
   async getUserDetail(token: string) {
@@ -178,7 +178,7 @@ export class ExtenalAuthService {
       where: {
         id: userId
       }, data: {
-        externalAdminUsersUserId: admin[0].id
+        externalAdminUsersUserId: admin.id
       }
     })
 
