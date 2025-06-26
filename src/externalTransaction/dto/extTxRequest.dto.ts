@@ -12,6 +12,15 @@ export class ExternalTxRequestDto {
     customer_no: string[]
 }
 
+export class ExternalTxRequestWebDto {
+
+    @IsNotEmpty()
+    code: string
+
+    @IsNotEmpty()
+    customer_no: string[]
+}
+
 export interface ExternalTxRequest {
     code: string
     customer_no: string
