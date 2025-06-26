@@ -160,7 +160,7 @@ export class ExtenalAuthService {
     return findAdmin
   }
 
-    async getUserDetail(token:string){
+  async getUserDetail(token:string){
     const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
