@@ -14,6 +14,12 @@ export class ExternalAuthController {
         return await this.extAuthService.login(payload);
     }
 
+    @UseGuards(AuthGuard)
+    @Post('/detail')
+    async userDetail(@Req() req: any){
+        return await this.extAuthService.getUserDetail(req.headers.authorization)
+    }
+
     @Post('/register')
     async register(@Body() payload: any) {
         return await this.extAuthService.signUp(payload);
@@ -31,7 +37,6 @@ export class ExternalAuthController {
     @Post('/generate-referal')
     async reqReferal(@Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
-        console.log(user, "user")
         return this.extAuthService.generateReferalCode(user.id);
     }
 
