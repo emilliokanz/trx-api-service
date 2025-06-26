@@ -44,6 +44,8 @@ export class ExternalTransactionController {
 
         const user = await this.authService.getUserDetail(req.headers.authorization)
 
+        payload.username = user.username
+
         const { errors, dto } = await validateDto(ExternalTxRequestDto, payload);
 
         if (errors.length > 0) {
