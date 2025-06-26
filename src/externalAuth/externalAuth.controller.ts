@@ -50,7 +50,7 @@ export class ExternalAuthController {
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Customer])
     @Post('/assign-admin')
-    async assignToAdmin(@Body() payload: any, req: any) {
+    async assignToAdmin(@Body() payload: any, @Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
         return this.extAuthService.assignToAdminUser(payload.referal_code, user.id)
     }
