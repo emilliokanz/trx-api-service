@@ -33,6 +33,7 @@ export class ExtenalAuthService {
 
     const jwtPayload = {
       id: user[0].id,
+      username: user[0].username,
       name: user[0].name,
       role: user[0].role,
     };
@@ -61,25 +62,27 @@ export class ExtenalAuthService {
         isCustomer: true,
         email: payload.email,
         phoneNumber: payload.phoneNumber,
-        referalCode: payload.referalCode || '',
+        referalCode: payload.referal_code || '',
         apiKey: '',
         balance: 0
       },
     });
 
-    if (createUser && payload.referalCode !== '') {
-      try {
-        await this.addToAdminUser(payload.referalCode, createUser.id)
-      } catch (error: any) {
-        return new ApiResponseDto(errorMap[1004], null, "1004")
-      }
-    }
-
-    return {
+    const userData = {
       name: createUser.name,
       username: createUser.username,
       role: createUser.role,
-    };
+    }
+
+    if (createUser && payload.referal_code) {
+      try {
+        await this.assignToAdminUser(payload.referal_code, createUser.id)
+      } catch (error: any) {
+        return new ApiResponseDto(errorMap[1005], userData, "1005")
+      }
+    }
+
+    return new ApiResponseDto("success", userData, "0000")
   }
 
   async generateApiKey(username: string) {
@@ -130,23 +133,6 @@ export class ExtenalAuthService {
     }
   }
 
-  async addToAdminUser(referalCode: string, customerId: number) {
-
-    const findAdmin = this.checkReferalCode(referalCode)
-
-
-    await this.prisma.externalAdminUsers.create({
-      data: {
-        userId: findAdmin[0].id,
-        customers: {
-          connect: {
-            id: customerId
-          }
-        }
-      }
-    })
-  }
-
   async checkReferalCode(referalCode: string) {
     const findAdmin = await this.prisma.externalUser.findMany({
       where: {
@@ -160,18 +146,18 @@ export class ExtenalAuthService {
     return findAdmin
   }
 
-  async getUserDetail(token:string){
-    const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET,
-      });
+  async getUserDetail(token: string) {
+    const user = await this.jwtService.verifyAsync(token, {
+      secret: process.env.JWT_SECRET,
+    });
 
-    return payload
+    return user
   }
 
-  async assignToAdminUser(referalCode: string, userId: number){
+  async assignToAdminUser(referalCode: string, userId: number) {
     const admin = await this.checkReferalCode(referalCode)
 
-    if(admin instanceof ApiResponseDto){
+    if (admin instanceof ApiResponseDto) {
       return admin
     }
 
@@ -184,7 +170,7 @@ export class ExtenalAuthService {
       }
     })
 
-    if(!isUserAssigned){
+    if (!isUserAssigned) {
       return new ApiResponseDto(errorMap[1006], null, "1006")
     }
 
