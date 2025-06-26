@@ -3,6 +3,7 @@ import { ExtenalAuthService } from './externalAuth.service';
 import { Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 
 
 @Controller('ext-auth')
@@ -16,8 +17,9 @@ export class ExternalAuthController {
 
     @UseGuards(AuthGuard)
     @Post('/detail')
-    async userDetail(@Req() req: any){
-        return await this.extAuthService.getUserDetail(req.headers.authorization)
+    async userDetail(@Req() req: any) {
+        const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+        return new ApiResponseDto('success', user, "0000")
     }
 
     @Post('/register')
@@ -48,7 +50,7 @@ export class ExternalAuthController {
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Customer])
     @Post('/assign-admin')
-    async assignToAdmin(@Body() payload: any, req: any){
+    async assignToAdmin(@Body() payload: any, req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
         return this.extAuthService.assignToAdminUser(payload.referal_code, user.id)
     }
