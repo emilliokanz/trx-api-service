@@ -68,7 +68,7 @@ export class ExtenalAuthService {
         role: Roles.Customer,
         isCustomer: true,
         email: payload.email,
-        phoneNumber: payload.phoneNumber,
+        phoneNumber: payload.phone_number,
         referalCode: payload.referal_code || '',
         apiKey: '',
         balance: 0
