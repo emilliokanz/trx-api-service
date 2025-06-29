@@ -9,6 +9,7 @@ export const errorMap = {
     2000: 'product not found',
     2001: 'product price same or less than supplier price',
     2002: 'product price is lower than actual price',
+    2003: 'admin product price same or less than actual price',
     4000: 'missing request payload' + ' ',
     4001: 'wrong request payload' + ' ',
     4002: 'missing api key',
