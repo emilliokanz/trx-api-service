@@ -52,6 +52,6 @@ export class ExternalAuthController {
     @Post('/assign-admin')
     async assignToAdmin(@Body() payload: any, @Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
-        return this.extAuthService.assignToAdminCustomer(payload.referal_code, user.id)
+        return this.extAuthService.assignAdminCustomer(payload.referal_code, user.id)
     }
 }

@@ -156,16 +156,19 @@ model ExternalUser {
   ExternalSupplierProduct    ExternalSupplierProduct[]
   ExternalTransactionBatch   ExternalTransactionBatch[]
   ExternalTransactionHistory ExternalTransactionHistory[]
-  ExternalAdminUsers         ExternalAdminUsers?          @relation(fields: [externalAdminUsersUserId], references: [userId])
   ExternalUserBalanceHistory ExternalUserBalanceHistory[]
   ExternalAdminCustProduct   ExternalAdminCustProduct[]
+  ExternalAdminUsers         ExternalAdminUsers[]
 }
 
 model ExternalAdminUsers {
-  userId    Int            @id
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @default(now()) @updatedAt
-  customers ExternalUser[]
+  cust_id      Int
+  admin_id     Int
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
+  ExternalUser ExternalUser? @relation(fields: [admin_id], references: [id])
+
+  @@id([cust_id, admin_id])
 }
 
 model ExternalUserBalanceHistory {

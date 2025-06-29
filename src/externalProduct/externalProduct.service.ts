@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreateExtProduct } from "./dto/createProduct.dto";
 import { extProductToDb, extProductToDbOne } from "./mapper/extProductToDb";
@@ -7,6 +7,7 @@ import { errorMap } from "src/lib/errorCodes";
 import { ExternalUser, Prisma } from "@prisma/client";
 import PaginationIface from "src/interface/paginationIface";
 import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
+import { CreateExtProductCustomer } from "./dto/createProductCustomer.dto";
 
 @Injectable()
 export class ExternalProductService {
@@ -84,7 +85,6 @@ export class ExternalProductService {
 
 
         if (payload.products) {
-            // Delete existing records for the item_id
             await this.prisma.extProductToSupplierJunction.deleteMany({
                 where: {
                     item_id: product.item_id
@@ -111,14 +111,12 @@ export class ExternalProductService {
                 return new ApiResponseDto(errorMap[2001], null, '2001')
             }
 
-            // Prepare new records
             const createData = payload.products.map(x => ({
                 item_id: product.item_id,
                 product_id: x.product_id,
                 qty: x.qty !== 0 ? x.qty : 1
             }));
 
-            // Insert all new records
             await this.prisma.extProductToSupplierJunction.createMany({
                 data: createData
             });
@@ -141,17 +139,17 @@ export class ExternalProductService {
     }
 
     async findProductById(item_id: string) {
-        const findProduct = await this.prisma.externalProduct.findMany({
+        const findProduct = await this.prisma.externalProduct.findFirst({
             where: {
                 item_id
-            },
+            }
         });
 
         if (!findProduct) {
             return new ApiResponseDto(errorMap[2000], null, '2000')
         }
 
-        return new ApiResponseDto('success', findProduct[0], '0000');
+        return new ApiResponseDto('success', findProduct, '0000');
     }
 
     async findProducts(page: number, take: number, filter: any) {
@@ -202,39 +200,129 @@ export class ExternalProductService {
         return new ApiResponseDto("success", paginationData, '0000')
     }
 
-    async adminSetCustProduct(item_id: string, cust_id: number, price: number){
+    async createAdminCustProduct(payload: CreateExtProductCustomer[], admin_id: number) {
+
+        const success: any = []
+        const failed: string[] = []
+
+        if (payload.length == 0) {
+            throw new HttpException(new ApiResponseDto(errorMap[4000], null, '4000'), HttpStatus.BAD_REQUEST)
+        }
+
+        for (const item of payload) {
+            const errors = await this.validateCustProduct(item.item_id, item.cust_id, admin_id, item.price)
+
+            if (errors.length > 0) {
+                failed.push(...errors);
+                continue; // skip to next item
+            }
+
+            else try {
+                const addProduct = await this.prisma.externalAdminCustProduct.create({
+                    data: {
+                        price: item.price,
+                        cust_id: item.cust_id,
+                        item_id: item.item_id
+                    }
+                })
+
+                success.push(addProduct)
+
+            } catch (error: any) {
+                console.error(error.message)
+                failed.push(`${errorMap[5000]} ${item.item_id}`)
+            }
+        }
+
+        return new ApiResponseDto("success", {
+            success, failed
+        }, '0000')
+
+    }
+
+    async updateAdminCustProduct(payload: CreateExtProductCustomer, admin_id: number) {
+        const { item_id, cust_id, price } = payload
+        const errors = await this.validateCustProduct(item_id, cust_id, admin_id, price)
+
+        if (errors.length > 0) {
+            throw new HttpException(new ApiResponseDto(errorMap[4008], errors, '4008'), HttpStatus.BAD_REQUEST)
+        }
+
+        else try {
+            const updateProduct = await this.prisma.externalAdminCustProduct.update({
+                data: {
+                    price: price,
+                }, where: {
+                    cust_id_item_id: {
+                        cust_id: cust_id,
+                        item_id: item_id
+                    }
+                }
+            })
+
+            return new ApiResponseDto("success", {
+                updateProduct
+            }, '0000')
+
+        } catch (error: any) {
+            console.error(error.message)
+            throw new HttpException(new ApiResponseDto(errorMap[5000], errors, '5000'), HttpStatus.BAD_REQUEST)
+        }
+
+    }
+
+    async deleteAdminCustProduct(payload: CreateExtProductCustomer, admin_id: number) {
+        const { item_id, cust_id, price } = payload
+        const errors = await this.validateCustProduct(item_id, cust_id, admin_id, price)
+
+        if (errors.length > 0) {
+            throw new HttpException(new ApiResponseDto(errorMap[4008], errors, '4008'), HttpStatus.BAD_REQUEST)
+        }
+
+        else try {
+            const updateProduct = await this.prisma.externalAdminCustProduct.delete({
+                where: {
+                    cust_id_item_id: {
+                        cust_id: cust_id,
+                        item_id: item_id
+                    }
+                }
+            })
+
+            return new ApiResponseDto("success", {
+                updateProduct
+            }, '0000')
+
+        } catch (error: any) {
+            console.error(error.message)
+            throw new HttpException(new ApiResponseDto(errorMap[5000], errors, '5000'), HttpStatus.BAD_REQUEST)
+        }
+    }
+
+    async validateCustProduct(item_id: string, cust_id: number, admin_id: number, price: number) {
+        const errors: string[] = [];
+
         const product = await this.findProductById(item_id)
 
-        if(!product.data){
-            return product
+        if (!product.data) {
+            errors.push(`${errorMap[2000]} ${item_id}`)
         }
 
         const user = await this.externalUser.findUserById(cust_id)
 
-        if(!user.data){
-            return user
+        if (!user.data) {
+            errors.push(`${errorMap[1004]} ${cust_id}`)
         }
 
-        if(price < product.data.adminPrice){
-            return new ApiResponseDto(errorMap[2002], null, '2002');
+        if (user.data.externalAdminUsersUserId !== admin_id) {
+            errors.push(`${errorMap[4007]} ${user.data.name}`)
         }
 
-        try{
-          const addProduct = await this.prisma.externalAdminCustProduct.create({
-            data: {
-                price,
-                cust_id,
-                item_id
-            }
-          })
-
-          return new ApiResponseDto("success", addProduct, '0000')
-
-        }catch(error: any){
-            console.error(error.message)
-            return new ApiResponseDto(errorMap[5000], null, '5000');
+        if (product && price < product.data.adminPrice) {
+            errors.push(`${errorMap[2002]} ${item_id}`)
         }
 
+        return errors
     }
 
     async productPriceValidation(pPrice: number, sPrice: number, qty: number) {
