@@ -17,6 +17,7 @@ import { ExternalTransactionController } from 'src/externalTransaction/externalT
 import { ExternalTransactionProcessor } from 'src/externalTransaction/externalTransaction.processor';
 import { ExternalProductService } from 'src/externalProduct/externalProduct.service';
 import { AuthService } from 'src/auth/auth.service';
+import { ExternalAuthService } from 'src/externalAuth/externalAuth.service';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { AuthService } from 'src/auth/auth.service';
     ExternalTransactionService,
     ExternalTransactionProcessor,
     ExternalProductService,
+    ExternalAuthService,
     AuthService
   ], exports: [
     BullModule,
