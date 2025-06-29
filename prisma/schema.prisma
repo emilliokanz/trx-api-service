@@ -59,15 +59,15 @@ model ProductPrice {
 }
 
 model Owner {
-  id         Int      @id @default(autoincrement())
-  name       String
-  balance    Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
-  createdBy  Int?
-  percentage Int?
+  id            Int      @id @default(autoincrement())
+  name          String
+  balance       Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+  createdBy     Int?
+  percentage    Int?
   percentageExt Int?
-  user       User?    @relation(fields: [createdBy], references: [id])
+  user          User?    @relation(fields: [createdBy], references: [id])
 }
 
 model User {
@@ -158,6 +158,7 @@ model ExternalUser {
   ExternalTransactionHistory ExternalTransactionHistory[]
   ExternalAdminUsers         ExternalAdminUsers?          @relation(fields: [externalAdminUsersUserId], references: [userId])
   ExternalUserBalanceHistory ExternalUserBalanceHistory[]
+  ExternalAdminCustProduct   ExternalAdminCustProduct[]
 }
 
 model ExternalAdminUsers {
@@ -215,19 +216,21 @@ model ExternalTransactionHistory {
 }
 
 model ExternalProduct {
-  item_id                      String                         @id @unique
-  game_name                    String
-  item_name                    String
-  server_name                  String
-  group_name                   String
-  stock                        Int
-  min_order                    Int
-  price                        Int
-  createdBy                    Int?
-  createdAt                    DateTime                       @default(now())
-  updatedAt                    DateTime                       @default(now()) @updatedAt
-  products ExtProductToSupplierJunction[]
-  user                         ExternalUser?                  @relation(fields: [createdBy], references: [id])
+  item_id                  String                         @id @unique
+  game_name                String
+  item_name                String
+  server_name              String
+  group_name               String
+  stock                    Int
+  min_order                Int
+  price                    Int
+  adminPrice               Int?
+  createdBy                Int?
+  createdAt                DateTime                       @default(now())
+  updatedAt                DateTime                       @default(now()) @updatedAt
+  products                 ExtProductToSupplierJunction[]
+  user                     ExternalUser?                  @relation(fields: [createdBy], references: [id])
+  ExternalAdminCustProduct ExternalAdminCustProduct[]
 }
 
 model ExternalSupplierProduct {
@@ -263,6 +266,18 @@ model ExtProductToSupplierJunction {
   @@id([product_id, item_id])
 }
 
+model ExternalAdminCustProduct {
+  cust_id    Int
+  item_id    String
+  price      Int
+  extProduct ExternalProduct @relation(fields: [item_id], references: [item_id])
+  customer   ExternalUser    @relation(fields: [cust_id], references: [id])
+  createdBy  Int?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @default(now()) @updatedAt
+
+  @@id([cust_id, item_id])
+}
 
 enum Roles {
   Admin
