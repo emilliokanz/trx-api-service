@@ -10,7 +10,7 @@ import * as bcrypt from 'bcrypt'
 import hash from 'src/utils/hash';
 
 @Injectable()
-export class ExtenalAuthService {
+export class ExternalAuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -83,7 +83,7 @@ export class ExtenalAuthService {
 
     if (createUser && payload.referal_code) {
       try {
-        await this.assignToAdminUser(payload.referal_code, createUser.id)
+        await this.assignToAdminCustomer(payload.referal_code, createUser.id)
       } catch (error: any) {
         return new ApiResponseDto(errorMap[1005], userData, "1005")
       }
@@ -118,12 +118,11 @@ export class ExtenalAuthService {
   async generateReferalCode(id: number) {
     const referalCode = uuid.v4()
 
-    const user = await this.prisma.externalUser.findMany({
-      where: {
-        id
-      }
-    })
+    const user = await this.findUserById(id)
 
+    if(!user.data){
+      return user
+    }
 
     try {
       const updateAdmin = await this.prisma.externalUser.update({
@@ -162,7 +161,7 @@ export class ExtenalAuthService {
   }
 
 
-  async assignToAdminUser(referalCode: string, userId: number) {
+  async assignToAdminCustomer(referalCode: string, userId: number) {
     const admin = await this.checkReferalCode(referalCode)
 
     if (admin instanceof ApiResponseDto) {
@@ -195,5 +194,31 @@ export class ExtenalAuthService {
     })
 
       return new ApiResponseDto("success", updateUser, "0000")
+  }
+
+  async findUserById(user_id: number){
+    const user = await this.prisma.externalUser.findFirst({
+      where: {
+        id: user_id
+      }
+    })
+
+    if(!user){
+      return new ApiResponseDto(errorMap[1004], null, "1004")
+    }
+
+    return new ApiResponseDto("success", user, "0000")
+  }
+
+  async findUserByUsername(username: string){
+    const user = await this.prisma.externalUser.findMany({
+      where: { username },
+    });
+
+    if (!user) {
+      return new ApiResponseDto(errorMap[1004], null, "1004")
+    }
+
+    return new ApiResponseDto("success", user, "0000")
   }
 }
