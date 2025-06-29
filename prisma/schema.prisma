@@ -227,7 +227,7 @@ model ExternalProduct {
   stock                    Int
   min_order                Int
   price                    Int
-  adminPrice               Int?
+  admin_price              Int?
   createdBy                Int?
   createdAt                DateTime                       @default(now())
   updatedAt                DateTime                       @default(now()) @updatedAt

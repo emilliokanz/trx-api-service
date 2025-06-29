@@ -14,6 +14,14 @@ export class ExternalProductService {
     constructor(private prisma: PrismaService, private externalUser: ExternalAuthService) { }
 
     async createProduct(payload: CreateExtProduct[]) {
+        const success: any = []
+        const failed: string[] = []
+        const junctionProducts : any[]= []
+
+        if (payload.length == 0) {
+            throw new HttpException(new ApiResponseDto(errorMap[4000], null, '4000'), HttpStatus.BAD_REQUEST)
+        }
+
         const mappedProducts = await extProductToDb(payload)
         try {
             const product = await this.prisma.externalProduct.createMany({
@@ -22,44 +30,36 @@ export class ExternalProductService {
 
 
             for (const x of payload) {
-                let sPrice = 0
+                const errors = await this.validateProduct(x)
 
-                for (const y of x.products) {
-                    y.item_id = x.item_id
-                    const product = await this.prisma.externalSupplierProduct.findFirst({
-                        where: {
-                            id: y.product_id
-                        }
+                if (errors.length > 0) {
+                    failed.push(...errors)
+                    continue
+                } else {
+                    x.products.forEach((y) => {
+                        y.item_id = x.item_id
                     })
-
-                    if (!product) {
-                        return new ApiResponseDto(errorMap[2000], { product_id: y.product_id }, '2000')
-                    }
-
-                    sPrice = sPrice + (product.price * y.qty)
+                    junctionProducts.push(...x.products)
                 }
 
-                if (x.price <= sPrice) {
-                    return new ApiResponseDto(errorMap[2001], { item_id: x.item_id }, '2001')
+            }
+
+            if(junctionProducts.length > 0){
+                const args: Prisma.ExtProductToSupplierJunctionCreateManyArgs = {
+                    data: junctionProducts[0],
+                    skipDuplicates: true,
+                }
+    
+                if (product && args) {
+                    await this.prisma.extProductToSupplierJunction.createMany(args)
                 }
             }
 
-            const juctionProducts: any = payload.map(x => x.products)
-
-            const args: Prisma.ExtProductToSupplierJunctionCreateManyArgs = {
-                data: juctionProducts[0],
-                skipDuplicates: true,
-            }
-
-            if (product && args) {
-                await this.prisma.extProductToSupplierJunction.createMany(args)
-            }
-
-            return new ApiResponseDto("success", product, '0000')
+            return new ApiResponseDto("success", {success: product, failed}, '0000')
 
         } catch (error: any) {
             console.log(error.message)
-            return new ApiResponseDto(errorMap[5000], null, '5000')
+            throw new HttpException(new ApiResponseDto(errorMap[5000], null, '5000'), HttpStatus.BAD_REQUEST)
         }
     }
 
@@ -70,19 +70,25 @@ export class ExternalProductService {
             }
         })
 
+        console.log(payload)
+
         if (!product) {
             return new ApiResponseDto(errorMap[2000], null, '2000')
         }
 
+        const errors = await this.validateProduct(payload)
+
+        if (errors.length > 0) {
+            throw new HttpException(new ApiResponseDto(errorMap[4008], errors, '4008'), HttpStatus.BAD_REQUEST)
+        }
+
         const mappedProducts = extProductToDbOne(payload)
 
-
-        const update = await this.prisma.externalProduct.update({
+        await this.prisma.externalProduct.update({
             where: {
                 item_id: payload.item_id
             }, data: mappedProducts
         })
-
 
         if (payload.products) {
             await this.prisma.extProductToSupplierJunction.deleteMany({
@@ -90,26 +96,6 @@ export class ExternalProductService {
                     item_id: product.item_id
                 }
             });
-
-            const sPrice = 0
-
-            for (const x of payload.products) {
-                const product = await this.prisma.externalSupplierProduct.findFirst({
-                    where: {
-                        id: x.product_id
-                    }
-                })
-
-                if (!product) {
-                    return new ApiResponseDto(errorMap[2000], { product_id: x.product_id }, '2000')
-                }
-
-                sPrice + (product.price * x.qty)
-            }
-
-            if (payload.price <= sPrice) {
-                return new ApiResponseDto(errorMap[2001], null, '2001')
-            }
 
             const createData = payload.products.map(x => ({
                 item_id: product.item_id,
@@ -136,6 +122,41 @@ export class ExternalProductService {
         };
 
         return new ApiResponseDto("success", result, '0000')
+    }
+
+    async validateProduct(payload: CreateExtProduct) {
+        const errors: string[] = []
+
+        let sPrice = 0
+
+        if (payload.products) {
+            for (const x of payload.products) {
+                const product = await this.prisma.externalSupplierProduct.findFirst({
+                    where: {
+                        id: x.product_id
+                    }
+                })
+
+                if (!product) {
+                    errors.push(`${errorMap[2000]} ${x.product_id}`)
+                    continue
+                }
+
+                sPrice = sPrice + (product.price * x.qty)
+            }
+        }
+
+        console.log(sPrice, "sPrice")
+        if (payload.price <= sPrice) {
+            errors.push(`${errorMap[2001]} ${payload.item_id}`)
+
+        }
+
+        if (payload.admin_price <= payload.price) {
+            errors.push(`${errorMap[2003]} ${payload.item_id}`)
+        }
+
+        return errors
     }
 
     async findProductById(item_id: string) {
@@ -318,7 +339,7 @@ export class ExternalProductService {
             errors.push(`${errorMap[4007]} ${user.data.name}`)
         }
 
-        if (product && price < product.data.adminPrice) {
+        if (product && price < product.data.admin_price) {
             errors.push(`${errorMap[2002]} ${item_id}`)
         }
 

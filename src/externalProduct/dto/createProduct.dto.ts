@@ -7,6 +7,7 @@ export interface CreateExtProduct {
     stock: number,
     min_order: number,
     price: number,
+    admin_price: number
     products: ExtProductJunction[]
 }
 
