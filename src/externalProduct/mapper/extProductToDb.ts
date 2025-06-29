@@ -11,6 +11,7 @@ export async function extProductToDb(productList: any[]) {
       stock: product.stock,
       min_order: product.min_order,
       price: product.price,
+      admin_price: product.admin_price
     })
   })
 
@@ -27,5 +28,6 @@ export function extProductToDbOne(product: any){
     stock: product.stock,
     min_order: product.min_order,
     price: product.price,
+    admin_price: product.admin_price
   }
 }
