@@ -83,7 +83,7 @@ export class ExternalAuthService {
 
     if (createUser && payload.referal_code) {
       try {
-        await this.assignToAdminCustomer(payload.referal_code, createUser.id)
+        await this.assignAdminCustomer(payload.referal_code, createUser.id)
       } catch (error: any) {
         return new ApiResponseDto(errorMap[1005], userData, "1005")
       }
@@ -125,16 +125,17 @@ export class ExternalAuthService {
     }
 
     try {
-      const updateAdmin = await this.prisma.externalUser.update({
+      await this.prisma.externalUser.update({
         where: {
-          id: user[0].id
+          id: user.data.id
         }, data: {
           referalCode
         }
       })
 
-      return new ApiResponseDto('success', updateAdmin, "0000")
+      return new ApiResponseDto('success', referalCode, "0000")
     } catch (error: any) {
+      console.log(error)
       return new ApiResponseDto(errorMap[5000], null, "5000")
     }
   }
@@ -149,7 +150,7 @@ export class ExternalAuthService {
     if (findAdmin.length == 0) {
       return new ApiResponseDto(errorMap[1005], null, "1005")
     }
-    return findAdmin[0]
+    return new ApiResponseDto('success', findAdmin[0], "0000")
   }
 
   async getUserDetail(token: string) {
@@ -161,10 +162,10 @@ export class ExternalAuthService {
   }
 
 
-  async assignToAdminCustomer(referalCode: string, userId: number) {
+  async assignAdminCustomer(referalCode: string, userId: number) {
     const admin = await this.checkReferalCode(referalCode)
 
-    if (admin instanceof ApiResponseDto) {
+    if (!admin.data) {
       return admin
     }
 
@@ -181,19 +182,27 @@ export class ExternalAuthService {
       return new ApiResponseDto(errorMap[1006], null, "1006")
     }
 
-    const updateUser = await this.prisma.externalUser.update({
+    await this.prisma.externalUser.update({
       where: {
         id: userId
       }, data: {
+        externalAdminUsersUserId: admin.data.id
+      }
+    })
+
+    await this.prisma.externalUser.update({
+      where: {
+        id: admin.data.id
+      }, data: {
         ExternalAdminUsers: {
           create: {
-            userId: admin.id
+            cust_id: userId
           }
         }
       }
     })
 
-      return new ApiResponseDto("success", updateUser, "0000")
+      return new ApiResponseDto("success", null, "0000")
   }
 
   async findUserById(user_id: number){
@@ -221,4 +230,5 @@ export class ExternalAuthService {
 
     return new ApiResponseDto("success", user, "0000")
   }
+
 }

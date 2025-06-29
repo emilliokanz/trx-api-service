@@ -8,6 +8,7 @@ export const errorMap = {
     1006: 'user already assigned to admin',
     2000: 'product not found',
     2001: 'product price same or less than supplier price',
+    2002: 'product price is lower than actual price',
     4000: 'missing request payload' + ' ',
     4001: 'wrong request payload' + ' ',
     4002: 'missing api key',
@@ -15,5 +16,7 @@ export const errorMap = {
     4004: 'tx not found',
     4005: 'expired tx',
     4006: 'duplicate customer_no found',
+    4007: 'cannot add product to non customer',
+    4008: 'failed updating product',
     5000: 'something wrong, please contact support'
   };

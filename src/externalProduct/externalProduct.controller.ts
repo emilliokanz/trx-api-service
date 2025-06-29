@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { ExternalProductService } from "./externalProduct.service";
 import { CreateExtProduct } from "./dto/createProduct.dto";
@@ -6,20 +6,22 @@ import { AuthGuard } from "src/auth/auth.guard";
 import { Roles } from "@prisma/client";
 import { UserRoles } from "src/auth/roles.decorator";
 import { PaginationDto } from "src/dto/pagination.dto";
+import { CreateExtProductCustomer } from "./dto/createProductCustomer.dto";
+import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
 
 @Controller('/api/v1/product')
 export class ExternalProductController {
-    constructor(private extProductService: ExternalProductService) { }
+    constructor(private extProductService: ExternalProductService, private extAuthService: ExternalAuthService) { }
 
     
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.Admin, Roles.SuperAdmin])@Post('/create')
+    @UserRoles([Roles.SuperAdmin])@Post('/create')
     async create(@Body() payload: CreateExtProduct[]) {
         return await this.extProductService.createProduct(payload)
     }
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.Admin, Roles.SuperAdmin])
+    @UserRoles([Roles.SuperAdmin])
     @Post('/update')
     async update(@Body() payload: CreateExtProduct) {
         return await this.extProductService.updateProduct(payload)
@@ -31,4 +33,32 @@ export class ExternalProductController {
     async getAll(@Body() payload: any) {
         return await this.extProductService.findProducts(payload.page, payload.size, payload.filter)
     }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.Admin])
+    @Post('/create-customer')
+    async createCustomer(@Body() payload: CreateExtProductCustomer[], @Req() req: any) {
+        const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+
+        return await this.extProductService.createAdminCustProduct(payload, user.id)
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.Admin])
+    @Post('/update-customer')
+    async updateCustomer(@Body() payload: CreateExtProductCustomer, @Req() req: any) {
+        const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+
+        return await this.extProductService.updateAdminCustProduct(payload, user.id)
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.Admin])
+    @Post('/delete-customer')
+    async deleteCustomer(@Body() payload: CreateExtProductCustomer, @Req() req: any) {
+        const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+
+        return await this.extProductService.updateAdminCustProduct(payload, user.id)
+    }
+
 }
