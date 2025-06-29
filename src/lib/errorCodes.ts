@@ -16,5 +16,7 @@ export const errorMap = {
     4004: 'tx not found',
     4005: 'expired tx',
     4006: 'duplicate customer_no found',
+    4007: 'cannot add product to non customer',
+    4008: 'failed updating product',
     5000: 'something wrong, please contact support'
   };
