@@ -69,7 +69,6 @@ export class ExternalAuthService {
         isCustomer: true,
         email: payload.email,
         phoneNumber: payload.phone_number,
-        referalCode: payload.referal_code || '',
         apiKey: '',
         balance: 0
       },
