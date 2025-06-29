@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ExternalAuthController } from './externalAuth.controller';
-import { ExternalAuthService } from './externalAuth.service';
+import { ExtenalAuthService } from './externalAuth.service';
 
 @Module({
   imports: [
@@ -12,8 +12,8 @@ import { ExternalAuthService } from './externalAuth.service';
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  providers: [ExternalAuthService, PrismaService],
+  providers: [ExtenalAuthService, PrismaService],
   controllers: [ExternalAuthController],
-  exports: [ExternalAuthService],
+  exports: [ExtenalAuthService],
 })
 export class ExternalAuthModule {}

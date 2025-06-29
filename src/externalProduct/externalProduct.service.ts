@@ -4,13 +4,12 @@ import { CreateExtProduct } from "./dto/createProduct.dto";
 import { extProductToDb, extProductToDbOne } from "./mapper/extProductToDb";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
-import { ExternalUser, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import PaginationIface from "src/interface/paginationIface";
-import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
 
 @Injectable()
 export class ExternalProductService {
-    constructor(private prisma: PrismaService, private externalUser: ExternalAuthService) { }
+    constructor(private prisma: PrismaService) { }
 
     async createProduct(payload: CreateExtProduct[]) {
         const mappedProducts = await extProductToDb(payload)
@@ -151,8 +150,9 @@ export class ExternalProductService {
             return new ApiResponseDto(errorMap[2000], null, '2000')
         }
 
-        return new ApiResponseDto('success', findProduct[0], '0000');
+        return findProduct[0];
     }
+
 
     async findProducts(page: number, take: number, filter: any) {
         const where: any = {};
@@ -200,41 +200,6 @@ export class ExternalProductService {
         };
 
         return new ApiResponseDto("success", paginationData, '0000')
-    }
-
-    async adminSetCustProduct(item_id: string, cust_id: number, price: number){
-        const product = await this.findProductById(item_id)
-
-        if(!product.data){
-            return product
-        }
-
-        const user = await this.externalUser.findUserById(cust_id)
-
-        if(!user.data){
-            return user
-        }
-
-        if(price < product.data.adminPrice){
-            return new ApiResponseDto(errorMap[2002], null, '2002');
-        }
-
-        try{
-          const addProduct = await this.prisma.externalAdminCustProduct.create({
-            data: {
-                price,
-                cust_id,
-                item_id
-            }
-          })
-
-          return new ApiResponseDto("success", addProduct, '0000')
-
-        }catch(error: any){
-            console.error(error.message)
-            return new ApiResponseDto(errorMap[5000], null, '5000');
-        }
-
     }
 
     async productPriceValidation(pPrice: number, sPrice: number, qty: number) {
