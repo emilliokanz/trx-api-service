@@ -1,5 +1,5 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { ExtenalAuthService } from './externalAuth.service';
+import { ExternalAuthService } from './externalAuth.service';
 import { Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -8,7 +8,7 @@ import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 
 @Controller('ext-auth')
 export class ExternalAuthController {
-    constructor(private extAuthService: ExtenalAuthService) { }
+    constructor(private extAuthService: ExternalAuthService) { }
 
     @Post('/login')
     async login(@Body() payload: any) {
@@ -52,6 +52,6 @@ export class ExternalAuthController {
     @Post('/assign-admin')
     async assignToAdmin(@Body() payload: any, @Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
-        return this.extAuthService.assignToAdminUser(payload.referal_code, user.id)
+        return this.extAuthService.assignToAdminCustomer(payload.referal_code, user.id)
     }
 }
