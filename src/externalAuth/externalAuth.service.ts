@@ -34,14 +34,14 @@ export class ExternalAuthService {
       return new ApiResponseDto(errorMap[1000], null, "1000")
     }
 
-    const jwtPayload : any = {
+    const jwtPayload: any = {
       id: user[0].id,
       username: user[0].username,
       name: user[0].name,
       role: user[0].role,
     };
 
-    if(user[0].role == 'Customer'){
+    if (user[0].role == 'Customer') {
       jwtPayload.referal = user[0].externalAdminUsersUserId != null;
     }
 
@@ -119,7 +119,7 @@ export class ExternalAuthService {
 
     const user = await this.findUserById(id)
 
-    if(!user.data){
+    if (!user.data) {
       return user
     }
 
@@ -142,7 +142,10 @@ export class ExternalAuthService {
   async checkReferalCode(referalCode: string) {
     const findAdmin = await this.prisma.externalUser.findMany({
       where: {
-        referalCode
+        referalCode: {
+          equals: referalCode,
+          not: null
+        }
       }
     })
 
@@ -201,24 +204,24 @@ export class ExternalAuthService {
       }
     })
 
-      return new ApiResponseDto("success", null, "0000")
+    return new ApiResponseDto("success", null, "0000")
   }
 
-  async findUserById(user_id: number){
+  async findUserById(user_id: number) {
     const user = await this.prisma.externalUser.findFirst({
       where: {
         id: user_id
       }
     })
 
-    if(!user){
+    if (!user) {
       return new ApiResponseDto(errorMap[1004], null, "1004")
     }
 
     return new ApiResponseDto("success", user, "0000")
   }
 
-  async findUserByUsername(username: string){
+  async findUserByUsername(username: string) {
     const user = await this.prisma.externalUser.findMany({
       where: { username },
     });
