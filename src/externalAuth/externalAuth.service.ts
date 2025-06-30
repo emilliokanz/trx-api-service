@@ -144,6 +144,7 @@ export class ExternalAuthService {
       where: {
         referalCode: {
           equals: referalCode,
+          notIn: [''],
           not: null
         }
       }
