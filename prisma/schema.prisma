@@ -146,27 +146,27 @@ model ExternalUser {
   role                       Roles
   apiKey                     String?
   isCustomer                 Boolean
-  phoneNumber                String?
-  email                      String?
-  referalCode                String?
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime                     @default(now()) @updatedAt
   externalAdminUsersUserId   Int?
+  email                      String?
+  phoneNumber                String?
+  referalCode                String?
+  ExternalAdminCustProduct   ExternalAdminCustProduct[]
+  ExternalAdminUsers         ExternalAdminUsers[]
   ExternalProduct            ExternalProduct[]
   ExternalSupplierProduct    ExternalSupplierProduct[]
   ExternalTransactionBatch   ExternalTransactionBatch[]
   ExternalTransactionHistory ExternalTransactionHistory[]
   ExternalUserBalanceHistory ExternalUserBalanceHistory[]
-  ExternalAdminCustProduct   ExternalAdminCustProduct[]
-  ExternalAdminUsers         ExternalAdminUsers[]
 }
 
 model ExternalAdminUsers {
   cust_id      Int
   admin_id     Int
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @default(now()) @updatedAt
-  ExternalUser ExternalUser? @relation(fields: [admin_id], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @default(now()) @updatedAt
+  ExternalUser ExternalUser @relation(fields: [admin_id], references: [id])
 
   @@id([cust_id, admin_id])
 }
@@ -227,13 +227,13 @@ model ExternalProduct {
   stock                    Int
   min_order                Int
   price                    Int
-  admin_price              Int?
   createdBy                Int?
   createdAt                DateTime                       @default(now())
   updatedAt                DateTime                       @default(now()) @updatedAt
+  admin_price              Int?
   products                 ExtProductToSupplierJunction[]
-  user                     ExternalUser?                  @relation(fields: [createdBy], references: [id])
   ExternalAdminCustProduct ExternalAdminCustProduct[]
+  user                     ExternalUser?                  @relation(fields: [createdBy], references: [id])
 }
 
 model ExternalSupplierProduct {
@@ -273,11 +273,11 @@ model ExternalAdminCustProduct {
   cust_id    Int
   item_id    String
   price      Int
-  extProduct ExternalProduct @relation(fields: [item_id], references: [item_id])
-  customer   ExternalUser    @relation(fields: [cust_id], references: [id])
   createdBy  Int?
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @default(now()) @updatedAt
+  customer   ExternalUser    @relation(fields: [cust_id], references: [id])
+  extProduct ExternalProduct @relation(fields: [item_id], references: [item_id])
 
   @@id([cust_id, item_id])
 }
