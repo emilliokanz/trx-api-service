@@ -73,7 +73,7 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.SuperAdmin])
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/history')
     @HttpCode(200)
     async getTxHistory(@Body() payload: any) {
