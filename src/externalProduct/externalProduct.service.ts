@@ -197,7 +197,7 @@ export class ExternalProductService {
             }
         }
 
-        if (role == "SuperAdmin"){
+        if (role == "SuperAdmin") {
             include = {
                 products: {
                     include: {
@@ -205,7 +205,7 @@ export class ExternalProductService {
                     },
                 },
             }
-        }        
+        }
 
         const data = await this.prisma.externalProduct.findMany({
             ...(page > 0 && {
@@ -220,10 +220,12 @@ export class ExternalProductService {
             where
         });
 
-        data.forEach((x) => {
-            x.price = x.admin_price || 0
-            delete (x as any).admin_price;
-        })
+        if (role == "Admin") {
+            data.forEach((x) => {
+                x.price = x.admin_price || 0
+                delete (x as any).admin_price;
+            })
+        }
 
         const paginationData: PaginationIface = {
             data,
