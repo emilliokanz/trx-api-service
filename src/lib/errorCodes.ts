@@ -10,8 +10,8 @@ export const errorMap = {
     2001: 'product price same or less than supplier price',
     2002: 'product price is lower than actual price',
     2003: 'admin product price same or less than actual price',
-    4000: 'missing request payload' + ' ',
-    4001: 'wrong request payload' + ' ',
+    4000: 'missing request payload' + ':' + ' ',
+    4001: 'wrong request payload' + ':' + ' ',
     4002: 'missing api key',
     4003: 'invalid api key',
     4004: 'tx not found',
@@ -19,5 +19,6 @@ export const errorMap = {
     4006: 'duplicate customer_no found',
     4007: 'cannot add product to non customer',
     4008: 'failed updating product',
+    4009: 'value already exist' + ':' + ' ',
     5000: 'something wrong, please contact support'
   };

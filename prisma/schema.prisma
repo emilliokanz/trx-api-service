@@ -151,22 +151,25 @@ model ExternalUser {
   externalAdminUsersUserId   Int?
   email                      String?
   phoneNumber                String?
-  referalCode                String?
+  referalCode                String?                      @unique
+  referalName                String?                      @unique
   ExternalAdminCustProduct   ExternalAdminCustProduct[]
-  ExternalAdminUsers         ExternalAdminUsers[]
   ExternalProduct            ExternalProduct[]
   ExternalSupplierProduct    ExternalSupplierProduct[]
   ExternalTransactionBatch   ExternalTransactionBatch[]
   ExternalTransactionHistory ExternalTransactionHistory[]
   ExternalUserBalanceHistory ExternalUserBalanceHistory[]
+  asCustomer                 ExternalAdminUsers[]         @relation("CustomerRelation")
+  asAdmin                    ExternalAdminUsers[]         @relation("AdminRelation")
 }
 
 model ExternalAdminUsers {
-  cust_id      Int
-  admin_id     Int
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @default(now()) @updatedAt
-  ExternalUser ExternalUser @relation(fields: [admin_id], references: [id])
+  cust_id   Int
+  admin_id  Int
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now()) @updatedAt
+  customer  ExternalUser @relation("CustomerRelation", fields: [cust_id], references: [id])
+  admin     ExternalUser @relation("AdminRelation", fields: [admin_id], references: [id])
 
   @@id([cust_id, admin_id])
 }
