@@ -241,26 +241,26 @@ export class ExternalTransactionService {
     };
 
     try {
-      const response = await this.httpAgentPost(body, 'api/price-list');
+      // const response = await this.httpAgentPost(body, 'api/price-list');
 
-      const products = response.data?.data;
+      // const products = response.data?.data;
 
-      if (!Array.isArray(products) || products.length === 0) {
-        console.warn('No products found in response.');
-        return [];
-      }
+      // if (!Array.isArray(products) || products.length === 0) {
+      //   console.warn('No products found in response.');
+      //   return [];
+      // }
 
-      const mapProduct = await productToDbMapper(products)
+      // const mapProduct = await productToDbMapper(products)
 
-      await Promise.all(
-        mapProduct.map((product) =>
-          this.prisma.externalSupplierProduct.upsert({
-            where: { code: product.code },
-            update: { ...product }, // update all fields or select which ones
-            create: { ...product },
-          })
-        )
-      );
+      // await Promise.all(
+      //   mapProduct.map((product) =>
+      //     this.prisma.externalSupplierProduct.upsert({
+      //       where: { code: product.code },
+      //       update: { ...product }, // update all fields or select which ones
+      //       create: { ...product },
+      //     })
+      //   )
+      // );
 
       const dbProduct = await this.prisma.externalSupplierProduct.findMany()
 

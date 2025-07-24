@@ -8,6 +8,7 @@ import { UserRoles } from "src/auth/roles.decorator";
 import { PaginationDto } from "src/dto/pagination.dto";
 import { CreateExtProductCustomer } from "./dto/createProductCustomer.dto";
 import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
+import { CreateSupplierProduct } from "./dto/createSupplierProduct.dto";
 
 @Controller('/api/v1/product')
 export class ExternalProductController {
@@ -18,6 +19,12 @@ export class ExternalProductController {
     @UserRoles([Roles.SuperAdmin])@Post('/create')
     async create(@Body() payload: CreateExtProduct[]) {
         return await this.extProductService.createProduct(payload)
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])@Post('/create-supplier')
+    async createSupplierProduct(@Body() payload: CreateSupplierProduct[]) {
+        return await this.extProductService.createSupplierProductFn(payload)
     }
 
     @UseGuards(AuthGuard)

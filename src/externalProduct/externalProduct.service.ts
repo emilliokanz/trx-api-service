@@ -8,6 +8,8 @@ import { ExternalUser, Prisma } from "@prisma/client";
 import PaginationIface from "src/interface/paginationIface";
 import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
 import { CreateExtProductCustomer } from "./dto/createProductCustomer.dto";
+import { productToDbMapper } from "src/externalTransaction/mapper/productToDbMapper";
+import { CreateSupplierProduct } from "./dto/createSupplierProduct.dto";
 
 @Injectable()
 export class ExternalProductService {
@@ -63,14 +65,29 @@ export class ExternalProductService {
         }
     }
 
+    async getSupplierProduct(){
+        const supplierProduct = await this.prisma.externalSupplierProduct.findMany()
+
+        return new ApiResponseDto("success", supplierProduct, '0000')
+    }
+
+    async createSupplierProductFn(payload: CreateSupplierProduct[]){
+
+        const mapProduct = await productToDbMapper(payload)
+        
+        await Promise.all(mapProduct.map((product) => {
+            this.prisma.externalSupplierProduct.createMany({
+                data: {...product}
+            })
+        }))
+    }
+
     async updateProduct(payload: CreateExtProduct) {
         const product = await this.prisma.externalProduct.findFirst({
             where: {
                 item_id: payload.item_id
             }
         })
-
-        console.log(payload)
 
         if (!product) {
             return new ApiResponseDto(errorMap[2000], null, '2000')

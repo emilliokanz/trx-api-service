@@ -1,4 +1,6 @@
-export async function productToDbMapper(products: any[]){
+import { CreateSupplierProduct } from "src/externalProduct/dto/createSupplierProduct.dto"
+
+export async function productToDbMapper(products: CreateSupplierProduct[]){
   const mappedProducts: any[] = []
 
   products.forEach((product: any) => {
