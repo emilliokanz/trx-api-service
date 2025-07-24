@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Roles } from '@prisma/client';
+import { Prisma, Roles } from '@prisma/client';
 import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 import { errorMap } from 'src/lib/errorCodes';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,6 +8,7 @@ import * as uuid from 'uuid';
 import * as bcrypt from 'bcrypt'
 
 import hash from 'src/utils/hash';
+import PaginationIface from 'src/interface/paginationIface';
 
 @Injectable()
 export class ExternalAuthService {
@@ -20,7 +21,7 @@ export class ExternalAuthService {
     const user = await this.prisma.externalUser.findMany({
       where: { username: payload.username },
       include: {
-        ExternalAdminUsers: true
+        asAdmin: true
       }
     });
 
@@ -34,15 +35,19 @@ export class ExternalAuthService {
       return new ApiResponseDto(errorMap[1000], null, "1000")
     }
 
-    const jwtPayload : any = {
+    const jwtPayload: any = {
       id: user[0].id,
       username: user[0].username,
       name: user[0].name,
       role: user[0].role,
     };
 
-    if(user[0].role == 'Customer'){
+    if (user[0].role == 'Customer') {
       jwtPayload.referal = user[0].externalAdminUsersUserId != null;
+    }
+
+    if (user[0].role == 'Admin') {
+      jwtPayload.referal = user[0].referalCode != null;
     }
 
 
@@ -114,35 +119,48 @@ export class ExternalAuthService {
     return new ApiResponseDto('success', { apiKey }, '0000')
   }
 
-  async generateReferalCode(id: number) {
+  async generateReferalCode(id: number, referalName: string) {
     const referalCode = uuid.v4()
+    if (!referalName) {
+      throw new HttpException(new ApiResponseDto(errorMap[4000] + "referal_name", null, "4000"), HttpStatus.BAD_REQUEST)
+    }
 
+    const data: Prisma.ExternalUserUpdateInput = { referalName }
     const user = await this.findUserById(id)
 
-    if(!user.data){
-      return user
+    if (!user.data.referalCode) {
+      data.referalCode = referalCode
     }
 
     try {
-      await this.prisma.externalUser.update({
+      const admin = await this.prisma.externalUser.update({
         where: {
           id: user.data.id
-        }, data: {
-          referalCode
-        }
+        }, data
       })
 
-      return new ApiResponseDto('success', referalCode, "0000")
+      return new ApiResponseDto('success', { referal_name: admin.referalName }, "0000")
     } catch (error: any) {
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new HttpException(
+          new ApiResponseDto(errorMap[4009] + 'referal_name', null, "4009"),
+          HttpStatus.BAD_REQUEST
+        );
+      }
       console.log(error)
-      return new ApiResponseDto(errorMap[5000], null, "5000")
+      throw new HttpException(new ApiResponseDto(errorMap[5000], null, "5000"), HttpStatus.BAD_REQUEST)
     }
   }
 
-  async checkReferalCode(referalCode: string) {
+  async checkReferalName(referalName: string) {
     const findAdmin = await this.prisma.externalUser.findMany({
       where: {
-        referalCode
+        referalName: {
+          equals: referalName,
+          notIn: [''],
+          not: null
+        }
       }
     })
 
@@ -161,8 +179,8 @@ export class ExternalAuthService {
   }
 
 
-  async assignAdminCustomer(referalCode: string, userId: number) {
-    const admin = await this.checkReferalCode(referalCode)
+  async assignAdminCustomer(referalName: string, userId: number) {
+    const admin = await this.checkReferalName(referalName)
 
     if (!admin.data) {
       return admin
@@ -193,32 +211,78 @@ export class ExternalAuthService {
       where: {
         id: admin.data.id
       }, data: {
-        ExternalAdminUsers: {
+        asAdmin: {
           create: {
-            cust_id: userId
+            cust_id: userId,
           }
         }
       }
     })
 
-      return new ApiResponseDto("success", null, "0000")
+    return new ApiResponseDto("success", null, "0000")
   }
 
-  async findUserById(user_id: number){
+  async getAdminCustomerList(page: number, size: number, name: string, admin_id: number) {
+    let where: Prisma.ExternalUserWhereInput = {
+      asCustomer: {
+        some: {
+          admin_id
+        }
+      }
+    }
+
+    if (name) {
+      where = {
+        OR: [{ name }, { username: name }],
+      }
+    }
+
+    const data = await this.prisma.externalUser.findMany({
+      skip: (page - 1) * size,
+      take: size,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      select: {
+        name: true,
+        username: true,
+        balance: true,
+        email: true,
+        phoneNumber: true,
+        createdAt: true
+      },
+      where
+    })
+
+    const totalData = await this.prisma.externalUser.count({
+      where
+    })
+
+    const paginationData: PaginationIface = {
+      data,
+      totalData,
+      page,
+      pageLength: Math.ceil(totalData / size)
+    };
+
+    return new ApiResponseDto('success', paginationData, '0000');
+  }
+
+  async findUserById(user_id: number) {
     const user = await this.prisma.externalUser.findFirst({
       where: {
         id: user_id
       }
     })
 
-    if(!user){
+    if (!user) {
       return new ApiResponseDto(errorMap[1004], null, "1004")
     }
 
     return new ApiResponseDto("success", user, "0000")
   }
 
-  async findUserByUsername(username: string){
+  async findUserByUsername(username: string) {
     const user = await this.prisma.externalUser.findMany({
       where: { username },
     });

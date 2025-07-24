@@ -6,7 +6,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 
 
-@Controller('ext-auth')
+@Controller('/api/v1/auth')
 export class ExternalAuthController {
     constructor(private extAuthService: ExternalAuthService) { }
 
@@ -37,14 +37,14 @@ export class ExternalAuthController {
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin])
     @Post('/generate-referal')
-    async reqReferal(@Req() req: any) {
+    async reqReferal(@Body() payload:any, @Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
-        return this.extAuthService.generateReferalCode(user.id);
+        return this.extAuthService.generateReferalCode(user.id, payload.referal_name);
     }
 
     @Post('/check-referal')
     async checkReferal(@Body() payload: any) {
-        return this.extAuthService.checkReferalCode(payload.referal_code);
+        return this.extAuthService.checkReferalName(payload.referal_code);
     }
 
     @UseGuards(AuthGuard)
@@ -53,5 +53,13 @@ export class ExternalAuthController {
     async assignToAdmin(@Body() payload: any, @Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
         return this.extAuthService.assignAdminCustomer(payload.referal_code, user.id)
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.Admin])
+    @Post('/customer-list')
+    async getAdminCustomers(@Body() payload: any, @Req() req: any) {
+        const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+        return this.extAuthService.getAdminCustomerList(payload.page, payload.size, payload.name, user.id)
     }
 }

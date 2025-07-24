@@ -37,8 +37,9 @@ export class ExternalProductController {
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin, Roles.SuperAdmin])
     @Post('/get-list')
-    async getAll(@Body() payload: any) {
-        return await this.extProductService.findProducts(payload.page, payload.size, payload.filter)
+    async getAll(@Body() payload: any, @Req() req: any) {
+        const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+        return await this.extProductService.findProducts(payload.page, payload.size, payload.filter, user.role)
     }
 
     @UseGuards(AuthGuard)

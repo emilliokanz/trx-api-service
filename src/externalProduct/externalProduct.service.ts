@@ -4,7 +4,7 @@ import { CreateExtProduct } from "./dto/createProduct.dto";
 import { extProductToDb, extProductToDbOne } from "./mapper/extProductToDb";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
-import { ExternalUser, Prisma } from "@prisma/client";
+import { ExternalUser, Prisma, Roles } from "@prisma/client";
 import PaginationIface from "src/interface/paginationIface";
 import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
 import { CreateExtProductCustomer } from "./dto/createProductCustomer.dto";
@@ -18,7 +18,7 @@ export class ExternalProductService {
     async createProduct(payload: CreateExtProduct[]) {
         const success: any = []
         const failed: string[] = []
-        const junctionProducts : any[]= []
+        const junctionProducts: any[] = []
 
         if (payload.length == 0) {
             throw new HttpException(new ApiResponseDto(errorMap[4000], null, '4000'), HttpStatus.BAD_REQUEST)
@@ -46,18 +46,18 @@ export class ExternalProductService {
 
             }
 
-            if(junctionProducts.length > 0){
+            if (junctionProducts.length > 0) {
                 const args: Prisma.ExtProductToSupplierJunctionCreateManyArgs = {
                     data: junctionProducts[0],
                     skipDuplicates: true,
                 }
-    
+
                 if (product && args) {
                     await this.prisma.extProductToSupplierJunction.createMany(args)
                 }
             }
 
-            return new ApiResponseDto("success", {success: product, failed}, '0000')
+            return new ApiResponseDto("success", { success: product, failed }, '0000')
 
         } catch (error: any) {
             console.log(error.message)
@@ -190,8 +190,9 @@ export class ExternalProductService {
         return new ApiResponseDto('success', findProduct, '0000');
     }
 
-    async findProducts(page: number, take: number, filter: any) {
+    async findProducts(page: number, take: number, filter: any, role: Roles) {
         const where: any = {};
+        let include: any = {};
 
         if (filter?.item_id) {
             where.item_id = filter.item_id;
@@ -206,7 +207,21 @@ export class ExternalProductService {
         }
 
         if (filter?.price != null) {
-            where.price = filter.price;
+            if (role == "Admin") {
+                where.admin_price = filter.price;
+            } else {
+                where.price = filter.price;
+            }
+        }
+
+        if (role == "SuperAdmin") {
+            include = {
+                products: {
+                    include: {
+                        product: true,
+                    },
+                },
+            }
         }
 
         const data = await this.prisma.externalProduct.findMany({
@@ -215,18 +230,19 @@ export class ExternalProductService {
                 take,
             }),
             where,
-            include: {
-                products: {
-                    include: {
-                        product: true,
-                    },
-                },
-            },
+            include
         });
 
         const totalData = await this.prisma.externalProduct.count({
             where
         });
+
+        if (role == "Admin") {
+            data.forEach((x) => {
+                x.price = x.admin_price || 0
+                delete (x as any).admin_price;
+            })
+        }
 
         const paginationData: PaginationIface = {
             data,
