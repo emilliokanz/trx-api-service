@@ -1,5 +1,8 @@
-export async function productToDbMapper(products: any[]){
-  const mappedProducts: any[] = []
+import { ExternalSupplierProduct, Prisma } from "@prisma/client"
+import { CreateSupplierProduct } from "src/externalProduct/dto/createSupplierProduct.dto"
+
+export async function productToDbMapper(products: CreateSupplierProduct[]){
+  const mappedProducts: Prisma.ExternalSupplierProductCreateInput[] = []
 
   products.forEach((product: any) => {
     mappedProducts.push({
@@ -7,7 +10,7 @@ export async function productToDbMapper(products: any[]){
       category: product.category,
       brand: product.brand,
       type: product.type,
-      price: product.price,
+      price: +product.price,
       code: product.code,
       status: product.status,
       unlimited_stock: product.unlimited_stock,
@@ -16,7 +19,7 @@ export async function productToDbMapper(products: any[]){
       start_cut_off: product.start_cut_off || '00:00',
       end_cut_off: product.end_cut_off || '00:00',
       desc: product.desc,
-      actualPrice: null
+      actualPrice: null,
     })
   })
 
