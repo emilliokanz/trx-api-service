@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
@@ -16,14 +16,19 @@ import { OwnerService } from "src/owner/owner.service";
 import { ExternalProductService } from "src/externalProduct/externalProduct.service";
 import { take } from "rxjs";
 import PaginationIface from "src/interface/paginationIface";
+import { PreTxDetailDto } from "./dto/preTxDetail.dto";
+import { SchedulerService } from "src/scheduler/scheduler.service";
+import * as FormData from "form-data";
 
 @Injectable()
 export class ExternalTransactionService {
+  private readonly logger = new Logger(SchedulerService.name)
+
   constructor(
     @InjectQueue('extTransactions') private readonly extTransactionQueue: Queue,
     private prisma: PrismaService,
     private owner: OwnerService,
-    private extProduct: ExternalProductService
+    private extProduct: ExternalProductService,
   ) { }
 
   async addTransaction(transactionData: ExternalTxRequestDto, apiKey: string, isWeb?: boolean, role?: string) {
@@ -75,7 +80,27 @@ export class ExternalTransactionService {
   async preTransaction(transactionData: ExternalTxRequestDto, apiKey: string, isWeb?: boolean, role?: string) {
     const { code, customer_no, username } = transactionData
 
-    await this.getProductList()
+    const extProduct = await this.prisma.externalProduct.findFirst({
+      where: {
+        item_id: code
+      }, include: {
+        products: {
+          include: {
+            product: true
+          }
+        }
+      }
+    })
+
+    const type = extProduct?.products[0].product.type
+
+    if (!extProduct) {
+      return new ApiResponseDto(errorMap[2000], null, '2000')
+    }
+
+    if(type !== "APIBOSS"){
+      await this.getProductList()
+    }
 
     if (!isWeb && !apiKey) {
       return new ApiResponseDto(errorMap[4002], null, '4002')
@@ -107,17 +132,6 @@ export class ExternalTransactionService {
       }
     }
 
-    const extProduct = await this.prisma.externalProduct.findFirst({
-      where: {
-        item_id: code
-      }
-    })
-
-
-    if (!extProduct) {
-      return new ApiResponseDto(errorMap[2000], null, '2000')
-    }
-
     const junctionProduct = await this.prisma.extProductToSupplierJunction.findMany({
       where: {
         item_id: code
@@ -130,22 +144,22 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[2000], null, '2000')
     }
 
-    const cost = 0
+    let cost = 0
 
     junctionProduct.forEach((x) => {
       const price = x.product.price * x.qty
-      cost + price
+      cost =  cost + price
     })
 
     const totalCost = cost * customer_no.length
 
-    const adminBalance = await this.getAdminBalanceFn()
+    const adminBalance = await this.getAdminBalanceFn(type || "")
 
     if (totalCost > adminBalance.data) {
-      return new ApiResponseDto(errorMap[5000], null, '5000')
+      return new ApiResponseDto(errorMap[1002], null, '1002')
     }
 
-    const txDetails: any[] = []
+    const txDetails: PreTxDetailDto[] = []
 
     customer_no.forEach((x) => {
       junctionProduct.forEach((product) => {
@@ -157,7 +171,8 @@ export class ExternalTransactionService {
               ref_id,
               customer_no: x,
               code: product.product.code,
-              profit
+              profit,
+              supplierType: product.product.type
             })
           }
         } else {
@@ -167,7 +182,8 @@ export class ExternalTransactionService {
             ref_id,
             customer_no: x,
             code: product.product.code,
-            profit
+            profit,
+            supplierType: product.product.type
           })
         }
       })
@@ -177,36 +193,42 @@ export class ExternalTransactionService {
     return txDetails
   }
 
-  async processTransaction(customer_no: string, code: string, ref_id: string, batchId: string, profit: number) {
+  async processTransaction(customer_no: string, code: string, ref_id: string, batchId: string, profit: number, supplierType: string) {
     let response: any = {};
 
 
-    const sign = generateSignature(
-      process.env.BLUESTUCK_USERNAME || '',
-      process.env.BLUESTUCK_API_KEY || '',
-      ref_id
-    )
+    if (supplierType == "APIBOSS") {
+      const sign = generateSignature(
+        process.env.APIBOSS_USERNAME || '',
+        process.env.APIBOSS_APIKEY || '',
+        ref_id
+      )
 
-    try {
+
       const body = {
-        username: process.env.BLUESTUCK_USERNAME,
-        code,
-        customer_no,
+        username: process.env.APIBOSS_USERNAME,
+        sku_code: code,
+        userid: customer_no,
         ref_id,
         sign
       };
 
+      const form = new FormData();
+      form.append('username', process.env.APIBOSS_USERNAME || '');
+      form.append('sku_code', code);
+      form.append('userid', customer_no);
+      form.append('ref_id', ref_id);
+      form.append('sign', sign);
+
       try {
-        response = await this.httpAgentPost(body, 'api/transaction');
+        response = await this.httpAgentPost(body, '', 'APIBOSS', form);
       } catch (error: any) {
         console.error(error.message);
         console.log(error.response?.data);
         response = error.response;
       }
 
-
       const transaction = response.data?.data;
-      console.log(transaction, "transaction response")
 
       const tx = await this.prisma.externalTransactionHistory.create({
         data: {
@@ -215,18 +237,74 @@ export class ExternalTransactionService {
           customer_no: customer_no.toString(),
           buyer_sku_code: code,
           sign,
-          rc: transaction.rc || '',
-          sn: transaction.sn || '',
+          rc: '',
+          sn: '',
           username: process.env.BLUESTUCK_USERNAME || '',
           status: transaction.status || TransactionStatus.FAILED,
           item_price: transaction.price || 0,
           profit
         }
       })
-    } catch (error: any) {
-      console.error(error.message)
-      console.log(error.response.data)
+
+      const balance = await this.prisma.supplierBalances.update({
+        where: {
+          name: supplierType
+        }, data: {
+          balance: transaction.balance
+        }
+      })
     }
+
+    else {
+      const sign = generateSignature(
+        process.env.BLUESTUCK_USERNAME || '',
+        process.env.BLUESTUCK_API_KEY || '',
+        ref_id
+      )
+      try {
+        const body = {
+          username: process.env.BLUESTUCK_USERNAME,
+          code,
+          customer_no,
+          ref_id,
+          sign
+        };
+
+        try {
+          response = await this.httpAgentPost(body, 'api/transaction', '', null);
+        } catch (error: any) {
+          console.error(error.message);
+          console.log(error.response?.data);
+          response = error.response;
+        }
+
+
+        const transaction = response.data?.data;
+        console.log(transaction, "transaction response")
+
+        const tx = await this.prisma.externalTransactionHistory.create({
+          data: {
+            externalTransactionBatchBatch_id: batchId,
+            ref_id,
+            customer_no: customer_no.toString(),
+            buyer_sku_code: code,
+            sign,
+            rc: transaction.rc || '',
+            sn: transaction.sn || '',
+            username: process.env.BLUESTUCK_USERNAME || '',
+            status: transaction.status || TransactionStatus.FAILED,
+            item_price: transaction.price || 0,
+            profit
+          }
+        })
+      } catch (error: any) {
+        console.error(error.message)
+        console.log(error.response.data)
+      }
+    }
+
+
+
   }
 
   async getProductList() {
@@ -271,24 +349,39 @@ export class ExternalTransactionService {
     }
   }
 
-  async getAdminBalanceFn() {
-    const body = {
-      username: process.env.BLUESTUCK_USERNAME,
-      sign: generateSignature(
-        process.env.BLUESTUCK_USERNAME || '',
-        process.env.BLUESTUCK_API_KEY || '',
-        'depo'
-      ),
-    };
+  async getAdminBalanceFn(type: string | null) {
+    if(type = "APIBOSS"){
+      const getBalance = await this.prisma.supplierBalances.findUnique({
+        where: {
+          name: "APIBOSS"
+        }
+      })
 
-    try {
-      const response = await this.httpAgentPost(body, 'api/cek-saldo');
-      return new ApiResponseDto("success", response.data.data, '0000')
+      if(!getBalance){
+        this.logger.debug(`[ADMIN BALANCE] balance for Supplier ${type} not found`)
+        return new ApiResponseDto("success", 0, '0000')  
 
+      }
+      return new ApiResponseDto("success", getBalance?.balance, '0000')  
 
-    } catch (error: any) {
-      return new ApiResponseDto(errorMap[5000], null, '5000')
+    } else {
+      const body = {
+        username: process.env.BLUESTUCK_USERNAME,
+        sign: generateSignature(
+          process.env.BLUESTUCK_USERNAME || '',
+          process.env.BLUESTUCK_API_KEY || '',
+          'depo'
+        ),
+      };
+  
+      try {
+        const response = await this.httpAgentPost(body, 'api/cek-saldo', '', null);
+        return new ApiResponseDto("success", response.data.data, '0000')  
+      } catch (error: any) {
+        return new ApiResponseDto(errorMap[5000], null, '5000')
+      }
     }
+    
   }
 
   async getPaymentTransactionStatus(ref_id: string) {
@@ -297,13 +390,19 @@ export class ExternalTransactionService {
         ref_id
       }
     })
+
+
+    if (!transaction) {
+      return new ApiResponseDto(errorMap[4004], null, '4004')
+    }
+
     const product = await this.prisma.externalSupplierProduct.findUnique({
       where: {
         code: transaction?.buyer_sku_code
       }
     })
 
-    if (!transaction) {
+    if (!product) {
       return new ApiResponseDto(errorMap[4004], null, '4004')
     }
 
@@ -334,6 +433,8 @@ export class ExternalTransactionService {
     const response = await this.httpAgentPost(
       body,
       'api/transaction',
+      product.type,
+      null
     );
 
     const trxStatus = response.data.data.status
@@ -479,7 +580,7 @@ export class ExternalTransactionService {
     start_date: string,
     end_date: string,
     ref_id: string,
-  batch_id: string) {
+    batch_id: string) {
     const where: any = {
     };
 
@@ -533,16 +634,30 @@ export class ExternalTransactionService {
     return new ApiResponseDto('success', paginationData, '0000');
   }
 
-  async httpAgentPost(requestBody: any, url: string) {
-    const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
+  async httpAgentPost(requestBody: any, url: string, supplierType: string, formData: any) {
+    if (supplierType == "APIBOSS") {
+      const response = await axios.post(
+        process.env.APIBOSS_URL + url,
+        formData,
+        {
+          headers: formData.getHeaders()
+        }
+      );
 
-    const response = await axios.post(process.env.BLUESTUCK_URL + url, requestBody, {
-      httpsAgent: agent,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+      this.logger.debug(`[EXTERNAL TRANSACTION] API RESPONSE ${supplierType}`, response.data)
 
-    return response;
+      return response
+    } else {
+      const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
+
+      const response = await axios.post(process.env.BLUESTUCK_URL + url, requestBody, {
+        httpsAgent: agent,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      return response;
+    }
   }
 }

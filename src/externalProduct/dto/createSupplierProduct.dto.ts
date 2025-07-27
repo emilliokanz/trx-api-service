@@ -1,16 +1,63 @@
-export interface CreateSupplierProduct {
-    name: string;
-    category: string;
-    brand: string;
-    type: string;
-    price: string;
-    code: string;
-    status: string;
-    unlimited_stock: string;
-    stock: string;
-    multi: string;
-    start_cut_off: string;
-    end_cut_off: string;
-    desc: string;
-    actualPrice: string;
-  }
+import {
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsDateString,
+  isBoolean,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class CreateSupplierProduct {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  category: string;
+
+  @IsString()
+  @IsNotEmpty()
+  brand: string;
+
+  @IsString()
+  @IsNotEmpty()
+  type: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  price: number;
+
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  status: boolean;
+
+  @IsBoolean()
+  unlimited_stock: boolean;
+
+  @Type(() => Number)
+  @IsNumber()
+  stock: number;
+
+  @IsBoolean()
+  multi: boolean;
+
+  @IsString()
+  start_cut_off: string;
+  
+  @IsString()
+  end_cut_off: string;
+
+  @IsString()
+  desc: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  actualPrice: number;
+}

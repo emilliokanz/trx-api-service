@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, HttpException, HttpStatus, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { ExternalProductService } from "./externalProduct.service";
 import { CreateExtProduct } from "./dto/createProduct.dto";
@@ -9,6 +9,8 @@ import { PaginationDto } from "src/dto/pagination.dto";
 import { CreateExtProductCustomer } from "./dto/createProductCustomer.dto";
 import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
 import { CreateSupplierProduct } from "./dto/createSupplierProduct.dto";
+import { validateDto } from "src/utils/payloadValidation";
+import { errorMap } from "src/lib/errorCodes";
 
 @Controller('/api/v1/product')
 export class ExternalProductController {
@@ -22,10 +24,32 @@ export class ExternalProductController {
     }
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.SuperAdmin])@Post('/create-supplier')
+    @UserRoles([Roles.SuperAdmin])
+    @Post('/create-supplier')
     async createSupplierProduct(@Body() payload: CreateSupplierProduct[]) {
-        return await this.extProductService.createSupplierProductFn(payload)
+      const errors : any= [];
+    
+      for (let i = 0; i < payload.length; i++) {
+        const { errors: validationErrors } = await validateDto(CreateSupplierProduct, payload[i]);
+    
+        if (validationErrors.length > 0) {
+          errors.push({
+            index: i,
+            errors: validationErrors,
+          });
+        }
+      }
+    
+      if (errors.length > 0) {
+        throw new HttpException(
+          new ApiResponseDto(errorMap[4001], errors, '4001'),
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    
+      return await this.extProductService.createSupplierProductFn(payload);
     }
+    
 
     @UseGuards(AuthGuard)
     @UserRoles([Roles.SuperAdmin])

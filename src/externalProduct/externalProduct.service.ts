@@ -65,22 +65,36 @@ export class ExternalProductService {
         }
     }
 
-    async getSupplierProduct(){
+    async getSupplierProduct() {
         const supplierProduct = await this.prisma.externalSupplierProduct.findMany()
 
         return new ApiResponseDto("success", supplierProduct, '0000')
     }
 
-    async createSupplierProductFn(payload: CreateSupplierProduct[]){
-
-        const mapProduct = await productToDbMapper(payload)
-        
-        await Promise.all(mapProduct.map((product) => {
-            this.prisma.externalSupplierProduct.createMany({
-                data: {...product}
+    async createSupplierProductFn(payload: CreateSupplierProduct[]) {
+        const mapProduct = await productToDbMapper(payload);
+    
+        const results = await Promise.all(
+            mapProduct.map(async (product) => {
+                try {
+                    const result = await this.prisma.externalSupplierProduct.upsert({
+                        where: { code: product.code },
+                        update: { ...product },
+                        create: { ...product },
+                    });
+    
+                    console.log(`Upserted product with code: ${product.code}`);
+                    return result;
+                } catch (error) {
+                    console.error(`Failed to upsert product with code: ${product.code}`, error);
+                    throw error;
+                }
             })
-        }))
+        );
+    
+        return new ApiResponseDto("success", results, "0000");
     }
+    
 
     async updateProduct(payload: CreateExtProduct) {
         const product = await this.prisma.externalProduct.findFirst({

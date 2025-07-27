@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 
 export default function generateSignature(username:string, apiKey:string, name:string, type?: string, desc?: string) {
+  console.log(username, apiKey, name, "desc")
   if(type == "BS"){
     return crypto
     .createHash('md5')
