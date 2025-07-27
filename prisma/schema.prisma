@@ -154,13 +154,13 @@ model ExternalUser {
   referalCode                String?                      @unique
   referalName                String?                      @unique
   ExternalAdminCustProduct   ExternalAdminCustProduct[]
+  asAdmin                    ExternalAdminUsers[]         @relation("AdminRelation")
+  asCustomer                 ExternalAdminUsers[]         @relation("CustomerRelation")
   ExternalProduct            ExternalProduct[]
   ExternalSupplierProduct    ExternalSupplierProduct[]
   ExternalTransactionBatch   ExternalTransactionBatch[]
   ExternalTransactionHistory ExternalTransactionHistory[]
   ExternalUserBalanceHistory ExternalUserBalanceHistory[]
-  asCustomer                 ExternalAdminUsers[]         @relation("CustomerRelation")
-  asAdmin                    ExternalAdminUsers[]         @relation("AdminRelation")
 }
 
 model ExternalAdminUsers {
@@ -168,8 +168,8 @@ model ExternalAdminUsers {
   admin_id  Int
   createdAt DateTime     @default(now())
   updatedAt DateTime     @default(now()) @updatedAt
-  customer  ExternalUser @relation("CustomerRelation", fields: [cust_id], references: [id])
   admin     ExternalUser @relation("AdminRelation", fields: [admin_id], references: [id])
+  customer  ExternalUser @relation("CustomerRelation", fields: [cust_id], references: [id])
 
   @@id([cust_id, admin_id])
 }
@@ -283,6 +283,22 @@ model ExternalAdminCustProduct {
   extProduct ExternalProduct @relation(fields: [item_id], references: [item_id])
 
   @@id([cust_id, item_id])
+}
+
+model SupplierBalances {
+    id                           Int                            @id @default(autoincrement())
+    name String @unique
+    balance Int
+    history SupplierBalanceHistory[]
+}
+
+model SupplierBalanceHistory {
+  id                           Int                            @id @default(autoincrement())
+  supplierBalanceId Int
+  createdBy                Int?
+  createdAt                DateTime                       @default(now())
+  updatedAt                DateTime                       @default(now()) @updatedAt
+  supplierBalance SupplierBalances @relation(fields: [supplierBalanceId], references: [id])
 }
 
 enum Roles {

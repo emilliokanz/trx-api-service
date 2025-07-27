@@ -33,7 +33,7 @@ export class ExternalTransactionProcessor extends WorkerHost {
     // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     // await delay(5000);
-    await this.extTransactionService.processTransaction(data.customer_no, data.code, data.ref_id, data.batch_id, data.profit);
+    await this.extTransactionService.processTransaction(data.customer_no, data.code, data.ref_id, data.batch_id, data.profit, data.supplierType);
 
     // customer_no: x.customer_no,
     // code: x.code,
