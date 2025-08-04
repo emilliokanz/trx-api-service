@@ -43,5 +43,5 @@ export class GetTransactionListDto {
 
   @IsOptional()
   @IsNumber()
-  pageSize?: number = 10;
+  size?: number = 10;
 }

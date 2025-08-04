@@ -1,141 +1,221 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { AddBankAccountDto } from "./dto/addBankAccount.dto";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
 import { CreateTopupRequestDto } from "./dto/createTopupRequest.dto";
-import { Prisma } from "@prisma/client";
+import { Prisma, TransactionStatus } from "@prisma/client";
 import { GetTransactionListDto } from "./dto/getTransactionList.dto";
+import generateReferenceId from "src/utils/generateReferenceId";
+import PaginationIface from "src/interface/paginationIface";
 
 @Injectable()
 export class ExternalTopupService {
-    constructor(
-    private prisma: PrismaService,
-    ){}
+  constructor(private prisma: PrismaService) {}
 
-    async addBankAccount(payload: AddBankAccountDto){
-        const findBankAccount = await this.prisma.bankAccount.findMany({
-            where : payload
-        })
+  async addBankAccount(payload: AddBankAccountDto) {
+    const findBankAccount = await this.prisma.bankAccount.findMany({
+      where: payload,
+    });
 
-        if(findBankAccount.length >= 1){
-            throw new ApiResponseDto(errorMap[4009] + payload.accountNo + "-" + payload.accountName + "-" + payload.bankName, null, '4009')
-        }
-
-        const create = await this.prisma.bankAccount.create({
-            data: {
-                accountName: payload.accountName,
-                bankName: payload.bankName,
-                accountNo: payload.accountNo,
-            }
-        })
-
-        return new ApiResponseDto("success", create, "2000")
+    if (findBankAccount.length >= 1) {
+      throw new HttpException(
+        new ApiResponseDto(
+          errorMap[4009] +
+            payload.accountNo +
+            "-" +
+            payload.accountName +
+            "-" +
+            payload.bankName,
+          null,
+          "4009"
+        ),
+        HttpStatus.BAD_REQUEST
+      );
     }
 
-    async getBankAccount(){
-        return new ApiResponseDto("success", await this.prisma.bankAccount.findMany(), "2000")
+    const create = await this.prisma.bankAccount.create({
+      data: {
+        accountName: payload.accountName,
+        bankName: payload.bankName,
+        accountNo: payload.accountNo,
+      },
+    });
+
+    return new ApiResponseDto("success", create, "0000");
+  }
+
+  async getBankAccount() {
+    return new ApiResponseDto(
+      "success",
+      await this.prisma.bankAccount.findMany(),
+      "0000"
+    );
+  }
+
+  async createTopupRequest(
+    payload: CreateTopupRequestDto,
+    requestorId: number
+  ) {
+    const { bankAccountId } = payload;
+
+    // 1. Check if user exists
+    const user = await this.prisma.externalUser.findUnique({
+      where: { id: requestorId },
+    });
+
+    if (!user) {
+      throw new HttpException(
+        new ApiResponseDto(errorMap[1004], null, "1004"),
+        HttpStatus.BAD_REQUEST
+      );
     }
 
-    async createTopupRequest(payload: CreateTopupRequestDto) {
-        const { requestorId, bankAccountId } = payload;
-    
-        // 1. Check if user exists
-        const user = await this.prisma.externalUser.findUnique({
-          where: { id: requestorId },
-        });
-    
-        if (!user) {
-            throw new ApiResponseDto(errorMap[1004] ,null, '1004')
-        }
-    
-        // 2. Check if toBankAccount exists
-        const destinationBankAccount = await this.prisma.bankAccount.findUnique({
-          where: { id: bankAccountId },
-        });
-    
-        if (!destinationBankAccount) {
-            throw new ApiResponseDto(errorMap[4010] + "bankAccountId" + " " + bankAccountId, null, '4010')
-        }
-    
-        // 3. Create top-up transaction
-        const transaction = await this.prisma.topupTransaction.create({
-          data: {
-            requestorId: payload.requestorId,
-            approver: payload.approver,
-            refNo: payload.refNo,
-            amount: payload.amount,
-            accountNo: payload.accountNo,
-            accountName: payload.accountName,
-            fromBankAccount: payload.fromBankAccount,
-            toBankAccount: destinationBankAccount.accountNo,
-            fromBankName: payload.fromBankName,
-            toBankName: destinationBankAccount.bankName,
-            txType: "DEPOSIT",
-            status: "PENDING"
-          },
-        });
-    
-        return new ApiResponseDto("success", transaction, "2000")
+    // 2. Check if toBankAccount exists
+    const destinationBankAccount = await this.prisma.bankAccount.findUnique({
+      where: { id: bankAccountId },
+    });
+
+    if (!destinationBankAccount) {
+      throw new HttpException(
+        new ApiResponseDto(
+          errorMap[4010] + "bankAccountId " + bankAccountId,
+          null,
+          "4010"
+        ),
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    try {
+      const transaction = await this.prisma.topupTransaction.create({
+        data: {
+          requestorId: requestorId,
+          approver: null,
+          refNo: "TP" + generateReferenceId(),
+          amount: payload.amount,
+          accountNo: payload.accountNo,
+          accountName: payload.accountName,
+          fromBankAccount: payload.fromBankAccount,
+          toBankAccount: destinationBankAccount.accountNo,
+          fromBankName: payload.fromBankName,
+          toBankName: destinationBankAccount.bankName,
+          txType: payload.txType,
+          status: "PENDING",
+        },
+      });
+
+      return new ApiResponseDto("success", transaction, "0000");
+    } catch (error: any) {
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new HttpException(
+          new ApiResponseDto(errorMap[4001], null, "4001"),
+          HttpStatus.BAD_REQUEST
+        );
       }
 
-      async getTransactionList(query: GetTransactionListDto) {
-        const {
-          createdDate,
-          accountName,
-          toBankName,
-          toBankAccount,
-          txType,
-          status,
-          page,
-          pageSize,
-        } = query;
-      
-        const where: Prisma.TopupTransactionWhereInput = {
-          ...(createdDate && {
-            createdAt: {
-              gte: new Date(createdDate),
-              lt: new Date(new Date(createdDate).getTime() + 24 * 60 * 60 * 1000),
-            },
-          }),
-          ...(accountName && {
-            accountName: { contains: accountName, mode: 'insensitive' },
-          }),
-          ...(toBankName && {
-            toBankName: { contains: toBankName, mode: 'insensitive' },
-          }),
-          ...(toBankAccount && {
-            toBankAccount: { contains: toBankAccount, mode: 'insensitive' },
-          }),
-          ...(txType && {
-            txType,
-          }),
-          ...(status && {
-            status,
-          }),
-        };
-      
-        const [data, total] = await this.prisma.$transaction([
-          this.prisma.topupTransaction.findMany({
-            where,
-            skip: ((page || 1 )- 1) * (pageSize || 10),
-            take: pageSize,
-            orderBy: { createdAt: 'desc' },
-          }),
-          this.prisma.topupTransaction.count({ where }),
-        ]);
-      
-        const returnData =  {
-          data,
-          meta: {
-            total,
-            page,
-            pageSize,
-            totalPages: Math.ceil(total / (pageSize || 10)),
-          },
-        };
+      throw new HttpException(
+        new ApiResponseDto("Internal server error", null, "5000"),
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 
-        return new ApiResponseDto("success", returnData, "2000")
-      }
-      
+  async updateTopupRequestStatus(
+    id: number,
+    status: TransactionStatus,
+    approverId: number
+  ) {
+    const existingTransaction = await this.prisma.topupTransaction.findUnique({
+      where: { id },
+    });
+
+    if (!existingTransaction) {
+      throw new HttpException(
+        new ApiResponseDto(
+          errorMap[4004] + "topupTransactionId " + id,
+          null,
+          "4004"
+        ),
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const updatedTransaction = await this.prisma.topupTransaction.update({
+      where: { id },
+      data: {
+        status,
+        approver: approverId,
+      },
+    });
+
+    await this.prisma.externalUser.update({
+      where: {
+        id: existingTransaction.requestorId,
+      },
+      data: {
+        balance: {
+          increment: existingTransaction.amount,
+        },
+      },
+    });
+
+    return new ApiResponseDto("success", updatedTransaction, "0000");
+  }
+
+  async getTransactionList(query: GetTransactionListDto) {
+    const {
+      createdDate,
+      accountName,
+      toBankName,
+      toBankAccount,
+      txType,
+      status,
+      page,
+      size,
+    } = query;
+
+    const where: Prisma.TopupTransactionWhereInput = {
+      ...(createdDate && {
+        createdAt: {
+          gte: new Date(createdDate),
+          lt: new Date(new Date(createdDate).getTime() + 24 * 60 * 60 * 1000),
+        },
+      }),
+      ...(accountName && {
+        accountName: { contains: accountName, mode: "insensitive" },
+      }),
+      ...(toBankName && {
+        toBankName: { contains: toBankName, mode: "insensitive" },
+      }),
+      ...(toBankAccount && {
+        toBankAccount: { contains: toBankAccount, mode: "insensitive" },
+      }),
+      ...(txType && {
+        txType,
+      }),
+      ...(status && {
+        status,
+      }),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.topupTransaction.findMany({
+        where,
+        skip: ((page || 1) - 1) * (size || 10),
+        take: size,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.topupTransaction.count({ where }),
+    ]);
+
+    const returnData = {
+      data,
+      totalData: total,
+      page,
+      pageLength: Math.ceil(total / (size || 10))
+    };
+
+    return new ApiResponseDto("success", returnData, "0000");
+  }
 }

@@ -159,6 +159,22 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[1002], null, '1002')
     }
 
+    if(username){
+      const findUser = await this.prisma.externalUser.findFirst({
+        where: {
+          username
+        }
+      })
+
+      if(!findUser){
+        return new ApiResponseDto(errorMap[1004], null, '1004')
+      }
+
+      if (totalCost > findUser?.balance) {
+        return new ApiResponseDto(errorMap[1002], null, '1002')
+      }
+    }
+
     const txDetails: PreTxDetailDto[] = []
 
     customer_no.forEach((x) => {
@@ -240,17 +256,18 @@ export class ExternalTransactionService {
           rc: '',
           sn: '',
           username: process.env.BLUESTUCK_USERNAME || '',
-          status: transaction.status || TransactionStatus.FAILED,
-          item_price: transaction.price || 0,
+          status: transaction?.status || TransactionStatus.FAILED,
+          item_price: transaction?.price || 0,
           profit
         }
-      })
+      });
+
 
       const balance = await this.prisma.supplierBalances.update({
         where: {
           name: supplierType
         }, data: {
-          balance: transaction.balance
+          balance: +transaction.balance
         }
       })
     }

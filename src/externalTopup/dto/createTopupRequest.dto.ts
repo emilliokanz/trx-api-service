@@ -1,16 +1,7 @@
 import { IsInt, IsOptional, IsString, IsNumber } from 'class-validator';
+import { TransactionType } from './getTransactionList.dto';
 
 export class CreateTopupRequestDto {
-  @IsInt()
-  requestorId: number;
-
-  @IsOptional()
-  @IsInt()
-  approver?: number;
-
-  @IsString()
-  refNo: string;
-
   @IsNumber()
   amount: number;
 
@@ -25,6 +16,9 @@ export class CreateTopupRequestDto {
 
   @IsString()
   fromBankName: string;
+
+  @IsString()
+  txType: TransactionType;
 
   @IsInt()
   bankAccountId: number

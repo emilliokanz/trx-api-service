@@ -12,6 +12,7 @@ import { FastifyAdapter } from '@bull-board/fastify';
 import { BalanceHistoryModule } from './balanceHistory/balanceHistory.module';
 import { ExternalProductModule } from './externalProduct/externalProduct.module';
 import { ExternalAuthModule } from './externalAuth/externalAuth.module';
+import { ExternalTopupModule } from './externalTopup/externalTopup.module';
 
 
 @Module({
@@ -25,6 +26,7 @@ import { ExternalAuthModule } from './externalAuth/externalAuth.module';
     AuthModule,
     PrismaModule,
     BalanceHistoryModule,
+    ExternalTopupModule,
     BullBoardModule.forRoot({
       route: '/queues', // Base route for the dashboard
       adapter: FastifyAdapter, // Or FastifyAdapter

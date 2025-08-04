@@ -6,36 +6,62 @@ import {
     Query,
     UsePipes,
     ValidationPipe,
+    UseGuards,
+    Req,
   } from '@nestjs/common';
   import { ExternalTopupService } from './externalTopup.service';
   import { AddBankAccountDto } from './dto/addBankAccount.dto';
   import { CreateTopupRequestDto } from './dto/createTopupRequest.dto';
   import { GetTransactionListDto } from './dto/getTransactionList.dto';
+import { Roles } from '@prisma/client';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { UserRoles } from 'src/auth/roles.decorator';
+import { ExternalAuthService } from 'src/externalAuth/externalAuth.service';
   
-  @Controller('external-topup')
+  @Controller('/api/v1/external-topup')
   export class ExternalTopupController {
-    constructor(private readonly externalTopupService: ExternalTopupService) {}
+    constructor(private readonly externalTopupService: ExternalTopupService, private readonly extAuthService: ExternalAuthService) {}
   
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])
     @Post('bank-account')
     @UsePipes(new ValidationPipe({ whitelist: true }))
     async addBankAccount(@Body() payload: AddBankAccountDto) {
       return this.externalTopupService.addBankAccount(payload);
     }
-  
-    @Get('bank-account')
+    
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])
+    @Post('bank-account-get')
     async getBankAccount() {
       return this.externalTopupService.getBankAccount();
     }
   
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.Admin])
     @Post('create-topup')
     @UsePipes(new ValidationPipe({ whitelist: true }))
-    async createTopupRequest(@Body() payload: CreateTopupRequestDto) {
-      return this.externalTopupService.createTopupRequest(payload);
+    async createTopupRequest(@Body() payload: CreateTopupRequestDto, @Req() req: any) {
+      const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+
+      return this.externalTopupService.createTopupRequest(payload, user.id);
     }
-  
-    @Get('transactions')
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])
+    @Post('update-topup')
+    @UsePipes(new ValidationPipe({ whitelist: true }))
+    async updateTopupRequest(@Body() payload: any, @Req() req: any) {
+      const user = await this.extAuthService.getUserDetail(req.headers.authorization)
+
+      return this.externalTopupService.updateTopupRequestStatus(payload.id, payload.status, user.id);
+    }
+    
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
+    @Post('transactions')
     @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
-    async getTransactionList(@Query() query: GetTransactionListDto) {
+    async getTransactionList(@Body() query: GetTransactionListDto) {
       return this.externalTopupService.getTransactionList(query);
     }
   }
