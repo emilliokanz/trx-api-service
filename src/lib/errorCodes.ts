@@ -20,5 +20,6 @@ export const errorMap = {
     4007: 'cannot add product to non customer',
     4008: 'failed updating product',
     4009: 'value already exist' + ':' + ' ',
+    4010: 'value not found' + ':' + ' ',
     5000: 'something wrong, please contact support'
   };
