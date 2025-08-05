@@ -35,7 +35,7 @@ export class SchedulerProcessor extends WorkerHost {
     if(process.env.NODE_ENV !== 'dev'){
       await this.transactionService.updateAllTxTStatus()
       await this.transactionService.getItemkuOrderList();
-      await this.extTransactionService.updateAllTxTStatus()
+      // await this.extTransactionService.updateAllTxTStatus()
     }
   }
 }
