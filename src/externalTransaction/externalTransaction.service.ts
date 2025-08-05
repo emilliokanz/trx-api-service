@@ -400,6 +400,10 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[4004], null, '4004')
     }
 
+    if(transaction.username == 'arvin0181'){
+      return null
+    }
+
     const product = await this.prisma.externalSupplierProduct.findUnique({
       where: {
         code: transaction?.buyer_sku_code

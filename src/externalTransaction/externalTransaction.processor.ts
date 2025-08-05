@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { ExternalTransactionService } from './externalTransaction.service';
 
-@Processor('extTransactions', { concurrency: 1})
+@Processor('extTransactions', { concurrency: 7})
 export class ExternalTransactionProcessor extends WorkerHost {
   private readonly logger = new Logger(ExternalTransactionProcessor.name);
   constructor(
