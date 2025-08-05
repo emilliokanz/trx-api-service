@@ -51,7 +51,7 @@ export class ExternalTransactionService {
       return {
         ref_id: x.ref_id,
         buyer_sku_code: x.code,
-        customer_no: x.customer_no,
+        customer_no: x.customer_no.toString(),
         profit: x.profit,
         username: "",
         sign: "",
