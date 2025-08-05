@@ -19,6 +19,7 @@ import PaginationIface from "src/interface/paginationIface";
 import { PreTxDetailDto } from "./dto/preTxDetail.dto";
 import { SchedulerService } from "src/scheduler/scheduler.service";
 import * as FormData from "form-data";
+import { Prisma, Roles } from "@prisma/client";
 
 @Injectable()
 export class ExternalTransactionService {
@@ -46,6 +47,33 @@ export class ExternalTransactionService {
       }
     })
 
+    const createTxHistPayload: Prisma.ExternalTransactionHistoryCreateManyInput[] = transactionDetail.map((x: any) => {
+      return {
+        ref_id: x.ref_id,
+        buyer_sku_code: x.code,
+        customer_no: x.customer_no,
+        profit: x.profit,
+        username: "",
+        sign: "",
+        rc: "",
+        sn: "",
+        status: TransactionStatus.PENDING,
+        externalTransactionBatchBatch_id: batch_id
+      }
+    });
+
+    console.log("[BATCH] Pre Tx Histories: ", createTxHistPayload)
+
+    try {
+      const createTransactionHistory = await this.prisma.externalTransactionHistory.createMany({
+        data: createTxHistPayload
+      })
+      console.log("[BATCH] successfuly input pre Tx History", createTransactionHistory)
+    } catch (error: any) {
+      console.error(error)
+      console.error('[BATCH] inputing pre Tx History to batch failed')
+    }
+
     if (transactionDetail && transactionDetail.length > 0) {
       transactionDetail.forEach(async (x) => {
         const processorName = `processor-${batch.batch_id}`;
@@ -58,7 +86,7 @@ export class ExternalTransactionService {
           },
           {
             jobId: x.ref_id,
-            attempts: 3,
+            attempts: 1,
             backoff: {
               type: 'exponential',
               delay: 5000,
@@ -98,7 +126,7 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[2000], null, '2000')
     }
 
-    if(type !== "APIBOSS"){
+    if (type !== "APIBOSS") {
       await this.getProductList()
     }
 
@@ -148,7 +176,7 @@ export class ExternalTransactionService {
 
     junctionProduct.forEach((x) => {
       const price = x.product.price * x.qty
-      cost =  cost + price
+      cost = cost + price
     })
 
     const totalCost = cost * customer_no.length
@@ -159,14 +187,14 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[1002], null, '1002')
     }
 
-    if(username){
+    if (role == Roles.Admin || role == Roles.Customer) {
       const findUser = await this.prisma.externalUser.findFirst({
         where: {
           username
         }
       })
 
-      if(!findUser){
+      if (!findUser) {
         return new ApiResponseDto(errorMap[1004], null, '1004')
       }
 
@@ -212,14 +240,13 @@ export class ExternalTransactionService {
   async processTransaction(customer_no: string, code: string, ref_id: string, batchId: string, profit: number, supplierType: string) {
     let response: any = {};
 
-
+    // APIBOSS TX
     if (supplierType == "APIBOSS") {
       const sign = generateSignature(
         process.env.APIBOSS_USERNAME || '',
         process.env.APIBOSS_APIKEY || '',
         ref_id
       )
-
 
       const body = {
         username: process.env.APIBOSS_USERNAME,
@@ -236,92 +263,52 @@ export class ExternalTransactionService {
       form.append('ref_id', ref_id);
       form.append('sign', sign);
 
-      try {
-        response = await this.httpAgentPost(body, '', 'APIBOSS', form);
-      } catch (error: any) {
-        console.error(error.message);
-        console.log(error.response?.data);
-        response = error.response;
-      }
-
-      const transaction = response.data?.data;
-
-      const tx = await this.prisma.externalTransactionHistory.create({
-        data: {
-          externalTransactionBatchBatch_id: batchId,
-          ref_id,
-          customer_no: customer_no.toString(),
-          buyer_sku_code: code,
-          sign,
-          rc: '',
-          sn: '',
-          username: process.env.BLUESTUCK_USERNAME || '',
-          status: transaction?.status || TransactionStatus.FAILED,
-          item_price: transaction?.price || 0,
-          profit
-        }
-      });
-
-
-      const balance = await this.prisma.supplierBalances.update({
-        where: {
-          name: supplierType
-        }, data: {
-          balance: +transaction.balance
-        }
-      })
-    }
-
-    else {
-      const sign = generateSignature(
-        process.env.BLUESTUCK_USERNAME || '',
-        process.env.BLUESTUCK_API_KEY || '',
-        ref_id
-      )
-      try {
-        const body = {
-          username: process.env.BLUESTUCK_USERNAME,
-          code,
-          customer_no,
-          ref_id,
-          sign
-        };
-
+      if (process.env.NODE_ENV !== "dev") {
         try {
-          response = await this.httpAgentPost(body, 'api/transaction', '', null);
+          response = await this.httpAgentPost(body, '', 'APIBOSS', form);
         } catch (error: any) {
           console.error(error.message);
           console.log(error.response?.data);
           response = error.response;
         }
+      }
+
+      const transaction = response.data?.data;
+
+      if (!transaction) {
+        console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} mark as Failed`)
+      }
+
+      const price = Number(transaction?.price) ?? 0
+      const status = transaction?.status ?? TransactionStatus.FAILED
+      const balance = Number(transaction?.balance) ?? 0
+
+      await this.prisma.externalTransactionHistory.update({
+        where: {
+          ref_id
+        },
+        data: {
+          status: status,
+          item_price: price,
+          profit,
+          sign,
+          username: process.env.APIBOSS_USERNAME || ''
+        }
+      });
 
 
-        const transaction = response.data?.data;
-        console.log(transaction, "transaction response")
-
-        const tx = await this.prisma.externalTransactionHistory.create({
-          data: {
-            externalTransactionBatchBatch_id: batchId,
-            ref_id,
-            customer_no: customer_no.toString(),
-            buyer_sku_code: code,
-            sign,
-            rc: transaction.rc || '',
-            sn: transaction.sn || '',
-            username: process.env.BLUESTUCK_USERNAME || '',
-            status: transaction.status || TransactionStatus.FAILED,
-            item_price: transaction.price || 0,
-            profit
+      if (balance !== 0) {
+        await this.prisma.supplierBalances.update({
+          where: {
+            name: supplierType
+          }, data: {
+            balance: +transaction.balance
           }
         })
-      } catch (error: any) {
-        console.error(error.message)
-        console.log(error.response.data)
+      } else {
+        console.error('[APIBOSS] Balance not updated, failed to receive API response')
       }
     }
-
-
-
   }
 
   async getProductList() {
@@ -367,19 +354,19 @@ export class ExternalTransactionService {
   }
 
   async getAdminBalanceFn(type: string | null) {
-    if(type = "APIBOSS"){
+    if (type = "APIBOSS") {
       const getBalance = await this.prisma.supplierBalances.findUnique({
         where: {
           name: "APIBOSS"
         }
       })
 
-      if(!getBalance){
+      if (!getBalance) {
         this.logger.debug(`[ADMIN BALANCE] balance for Supplier ${type} not found`)
-        return new ApiResponseDto("success", 0, '0000')  
+        return new ApiResponseDto("success", 0, '0000')
 
       }
-      return new ApiResponseDto("success", getBalance?.balance, '0000')  
+      return new ApiResponseDto("success", getBalance?.balance, '0000')
 
     } else {
       const body = {
@@ -390,15 +377,15 @@ export class ExternalTransactionService {
           'depo'
         ),
       };
-  
+
       try {
         const response = await this.httpAgentPost(body, 'api/cek-saldo', '', null);
-        return new ApiResponseDto("success", response.data.data, '0000')  
+        return new ApiResponseDto("success", response.data.data, '0000')
       } catch (error: any) {
         return new ApiResponseDto(errorMap[5000], null, '5000')
       }
     }
-    
+
   }
 
   async getPaymentTransactionStatus(ref_id: string) {

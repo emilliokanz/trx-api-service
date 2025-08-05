@@ -13,16 +13,16 @@ export class ExternalTransactionProcessor extends WorkerHost {
   }
 
   async process(job: Job<any>) {
-    this.logger.debug(`Processing EXT transaction for ref id: ${job.data.ref_id}`);
-    console.log('EXT transaction details to be processed: ', job.data);
+    this.logger.debug(`[JOB] Processing EXT transaction for ref id: ${job.data.ref_id}`);
+    console.debug('[JOB] EXT transaction details to be processed: ', job.data);
 
     try {
       await this.executeTransaction(job.data);
-      this.logger.debug(`EXT Transaction completed for ref id: ${job.data.ref_id}`);
+      this.logger.debug(`[JOB] EXT Transaction completed for ref id: ${job.data.ref_id}`);
       return { success: true };
     } catch (error) {
       this.logger.error(
-        `EXT transaction failed for ref id: ${job.data.ref_id}`,
+        `[JOB] EXT transaction failed for ref id: ${job.data.ref_id}`,
         error.stack,
       );
       throw error;
