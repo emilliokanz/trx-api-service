@@ -282,8 +282,10 @@ export class ExternalTransactionService {
       const price = Number(transaction?.price) ?? 0
       let status = transaction?.status ?? TransactionStatus.FAILED
 
-      if(status == 0 || status == '0'){
+      if(status == 0 || status == '0' || status == 'Sukses' || status == 'Successful'){
         status = TransactionStatus.SUCCESS
+      } else {
+        status = TransactionStatus.FAILED
       }
 
       const balance = Number(transaction?.balance) ?? 0
