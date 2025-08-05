@@ -280,7 +280,12 @@ export class ExternalTransactionService {
       }
 
       const price = Number(transaction?.price) ?? 0
-      const status = transaction?.status ?? TransactionStatus.FAILED
+      let status = transaction?.status ?? TransactionStatus.FAILED
+
+      if(status == 0 || status == '0'){
+        status = TransactionStatus.SUCCESS
+      }
+      
       const balance = Number(transaction?.balance) ?? 0
 
       await this.prisma.externalTransactionHistory.update({
