@@ -48,8 +48,12 @@ import { ExternalAuthService } from 'src/externalAuth/externalAuth.service';
       name: 'extTransactions',
       defaultJobOptions: {
         delay: 1000,
-        removeOnComplete: false,
-        removeOnFail: false,
+        removeOnComplete: {
+          age: 86400
+        },
+        removeOnFail: {
+          age: 86400
+        },
       },
     }),
     BullBoardModule.forFeature({

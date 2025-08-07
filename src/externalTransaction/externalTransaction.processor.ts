@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { ExternalTransactionService } from './externalTransaction.service';
 
-@Processor('extTransactions', { concurrency: 7})
+@Processor('extTransactions', { concurrency: 5})
 export class ExternalTransactionProcessor extends WorkerHost {
   private readonly logger = new Logger(ExternalTransactionProcessor.name);
   constructor(
@@ -33,7 +33,7 @@ export class ExternalTransactionProcessor extends WorkerHost {
     // const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     // await delay(5000);
-    await this.extTransactionService.processTransaction(data.customer_no, data.code, data.ref_id, data.batch_id, data.profit, data.supplierType);
+    await this.extTransactionService.processTransaction(data.customer_no, data.code, data.ref_id, data.batch_id, data.profit, data.supplierType, data.productDetail, data.role, data.user_id);
 
     // customer_no: x.customer_no,
     // code: x.code,

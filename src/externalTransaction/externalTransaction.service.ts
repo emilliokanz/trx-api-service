@@ -19,7 +19,7 @@ import PaginationIface from "src/interface/paginationIface";
 import { PreTxDetailDto } from "./dto/preTxDetail.dto";
 import { SchedulerService } from "src/scheduler/scheduler.service";
 import * as FormData from "form-data";
-import { Prisma, Roles } from "@prisma/client";
+import { ExternalProduct, Prisma, Roles } from "@prisma/client";
 
 @Injectable()
 export class ExternalTransactionService {
@@ -35,7 +35,7 @@ export class ExternalTransactionService {
   async addTransaction(transactionData: ExternalTxRequestDto, apiKey: string, isWeb?: boolean, role?: string) {
     const batch_id = "B" + generateReferenceId()
 
-    const transactionDetail: any = await this.preTransaction(transactionData, apiKey, isWeb)
+    const transactionDetail: PreTxDetailDto[] | any = await this.preTransaction(transactionData, apiKey, isWeb, role)
 
     if (transactionDetail.errorCode) {
       return transactionDetail
@@ -43,11 +43,12 @@ export class ExternalTransactionService {
 
     const batch = await this.prisma.externalTransactionBatch.create({
       data: {
-        batch_id
+        batch_id,
+        createdBy: transactionDetail[0].user_id
       }
     })
 
-    const createTxHistPayload: Prisma.ExternalTransactionHistoryCreateManyInput[] = transactionDetail.map((x: any) => {
+    const createTxHistPayload: Prisma.ExternalTransactionHistoryCreateManyInput[] = transactionDetail.map((x: PreTxDetailDto) => {
       return {
         ref_id: x.ref_id,
         buyer_sku_code: x.code,
@@ -58,7 +59,8 @@ export class ExternalTransactionService {
         rc: "",
         sn: "",
         status: TransactionStatus.PENDING,
-        externalTransactionBatchBatch_id: batch_id
+        externalTransactionBatchBatch_id: batch_id,
+        createdBy: x.user_id ?? ""
       }
     });
 
@@ -75,7 +77,7 @@ export class ExternalTransactionService {
     }
 
     if (transactionDetail && transactionDetail.length > 0) {
-      transactionDetail.forEach(async (x) => {
+      transactionDetail.forEach(async (x: PreTxDetailDto) => {
         const processorName = `processor-${batch.batch_id}`;
 
         const job = await this.extTransactionQueue.add(
@@ -181,13 +183,20 @@ export class ExternalTransactionService {
 
     const totalCost = cost * customer_no.length
 
-    const adminBalance = await this.getAdminBalanceFn(type || "")
+    const superDdminBalance = await this.getAdminBalanceFn(type || "")
 
-    if (totalCost > adminBalance.data) {
+    if (totalCost > superDdminBalance.data) {
       return new ApiResponseDto(errorMap[1002], null, '1002')
     }
 
     if (role == Roles.Admin || role == Roles.Customer) {
+
+      if (!extProduct.admin_price) {
+        return new ApiResponseDto(errorMap[2004], null, '2004')
+      }
+
+      const adminTotalCost = extProduct.admin_price * customer_no.length
+
       const findUser = await this.prisma.externalUser.findFirst({
         where: {
           username
@@ -198,9 +207,20 @@ export class ExternalTransactionService {
         return new ApiResponseDto(errorMap[1004], null, '1004')
       }
 
-      if (totalCost > findUser?.balance) {
+      if (adminTotalCost > findUser?.balance) {
         return new ApiResponseDto(errorMap[1002], null, '1002')
       }
+
+      await this.prisma.externalUser.update({
+        where: {
+          id: findUser.id
+        },
+        data: {
+          balance: {
+            decrement: adminTotalCost
+          }
+        }
+      })
     }
 
     const txDetails: PreTxDetailDto[] = []
@@ -216,7 +236,10 @@ export class ExternalTransactionService {
               customer_no: x,
               code: product.product.code,
               profit,
-              supplierType: product.product.type
+              supplierType: product.product.type,
+              productDetail: extProduct,
+              role: role || "",
+              user_id: findUser[0].id || null
             })
           }
         } else {
@@ -227,7 +250,10 @@ export class ExternalTransactionService {
             customer_no: x,
             code: product.product.code,
             profit,
-            supplierType: product.product.type
+            supplierType: product.product.type,
+            productDetail: extProduct,
+            role: role || "",
+            user_id: findUser[0].id || null
           })
         }
       })
@@ -237,7 +263,17 @@ export class ExternalTransactionService {
     return txDetails
   }
 
-  async processTransaction(customer_no: string, code: string, ref_id: string, batchId: string, profit: number, supplierType: string) {
+  async processTransaction(
+    customer_no: string,
+    code: string,
+    ref_id: string,
+    batchId: string,
+    profit: number,
+    supplierType: string,
+    productDetail: ExternalProduct,
+    role: string,
+    userId: number
+  ) {
     let response: any = {};
 
     // APIBOSS TX
@@ -266,54 +302,117 @@ export class ExternalTransactionService {
       if (process.env.NODE_ENV !== "dev") {
         try {
           response = await this.httpAgentPost(body, '', 'APIBOSS', form);
-        } catch (error: any) {
-          console.error(error.message);
-          console.log(error.response?.data);
-          response = error.response;
-        }
-      }
+          const transaction = response.data?.data;
 
-      const transaction = response.data?.data;
-
-      if (!transaction) {
-        console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} mark as Failed`)
-      }
-
-      const price = Number(transaction?.price) ?? 0
-      let status = transaction?.status ?? TransactionStatus.FAILED
-
-      if(status == 0 || status == '0' || status == 'Sukses' || status == 'Successful'){
-        status = TransactionStatus.SUCCESS
-      } else {
-        status = TransactionStatus.FAILED
-      }
-
-      const balance = Number(transaction?.balance) ?? 0
-
-      await this.prisma.externalTransactionHistory.update({
-        where: {
-          ref_id
-        },
-        data: {
-          status: status,
-          item_price: price,
-          profit,
-          sign,
-          username: process.env.APIBOSS_USERNAME || ''
-        }
-      });
-
-
-      if (balance !== 0) {
-        await this.prisma.supplierBalances.update({
-          where: {
-            name: supplierType
-          }, data: {
-            balance: +transaction.balance
+          if (!transaction) {
+            console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} mark as Failed`)
+            await this.prisma.externalTransactionHistory.update({
+              where: {
+                ref_id
+              },
+              data: {
+                status: TransactionStatus.FAILED,
+                profit,
+                sign,
+                username: process.env.APIBOSS_USERNAME || '',
+              }
+            });
+            return
           }
-        })
+
+          const price = Number(transaction?.price) ?? 0
+          let status = transaction?.status ?? TransactionStatus.FAILED
+
+          if (status == 0 || status == '0' || status == 'Sukses' || status == 'Successful') {
+            status = TransactionStatus.SUCCESS
+          } else {
+            status = TransactionStatus.FAILED
+          }
+
+          const balance = Number(transaction?.balance) ?? 0
+
+          await this.prisma.externalTransactionHistory.update({
+            where: {
+              ref_id
+            },
+            data: {
+              status: status,
+              item_price: price,
+              profit,
+              sign,
+              username: process.env.APIBOSS_USERNAME || ''
+            }
+          });
+
+
+          if (balance !== 0) {
+            await this.prisma.supplierBalances.update({
+              where: {
+                name: supplierType
+              }, data: {
+                balance: +transaction.balance
+              }
+            })
+          } else {
+            console.error('[APIBOSS] Balance not updated, failed to receive API response')
+          }
+
+        } catch (error: any) {
+          await this.prisma.externalTransactionHistory.update({
+            where: {
+              ref_id
+            },
+            data: {
+              status: TransactionStatus.FAILED,
+              profit,
+              sign,
+              username: process.env.APIBOSS_USERNAME || ''
+            }
+          });
+
+          if (role && (role == Roles.Admin || role == Roles.Customer)) {
+            const update = await this.prisma.externalUser.update({
+              where: {
+                id: userId
+              }, data: {
+                balance: {
+                  increment: productDetail.admin_price || 0
+                }
+              }
+            })
+
+            console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} returning Admin/Customer balance ${update.balance}`)
+          }
+
+
+          console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} mark as Failed`)
+          console.log(error.response?.data);
+        }
       } else {
-        console.error('[APIBOSS] Balance not updated, failed to receive API response')
+        await this.prisma.externalTransactionHistory.update({
+          where: {
+            ref_id
+          },
+          data: {
+            status: TransactionStatus.FAILED,
+            profit,
+            sign,
+            username: process.env.APIBOSS_USERNAME || ''
+          }
+        });
+        if (role && (role == Roles.Admin || role == Roles.Customer)) {
+          const update = await this.prisma.externalUser.update({
+            where: {
+              id: userId
+            }, data: {
+              balance: {
+                increment: productDetail.admin_price || 0
+              }
+            }
+          })
+
+          console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} returning Admin/Customer balance ${update.balance}`)
+        }
       }
     }
   }
@@ -407,7 +506,7 @@ export class ExternalTransactionService {
       return new ApiResponseDto(errorMap[4004], null, '4004')
     }
 
-    if(transaction.username == 'arvin0181'){
+    if (transaction.username == 'arvin0181') {
       return null
     }
 

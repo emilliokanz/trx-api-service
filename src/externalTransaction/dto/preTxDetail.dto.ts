@@ -1,3 +1,4 @@
+import { ExternalProduct, Roles } from '@prisma/client';
 import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
 
 export class PreTxDetailDto {
@@ -20,4 +21,10 @@ export class PreTxDetailDto {
   @IsString()
   @IsNotEmpty()
   supplierType: string;
+
+  productDetail: ExternalProduct
+
+  role: string
+
+  user_id: number | null
 }

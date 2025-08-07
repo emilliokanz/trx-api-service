@@ -89,7 +89,7 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.SuperAdmin])
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/history-detail')
     @HttpCode(200)
     async getTxHistoryDetail(@Body() payload: any) {
@@ -97,7 +97,7 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.SuperAdmin])
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/transaction-detail-list')
     @HttpCode(200)
     async getTxHistoryDetailByBatchId(@Body() payload: any) {
