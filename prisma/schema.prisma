@@ -315,6 +315,7 @@ model TopupTransaction {
   toBankName       String
   txType           TxType
   status           TransactionStatus
+  createdBy        Int?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
