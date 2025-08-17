@@ -165,7 +165,8 @@ export class ExternalTopupService {
 
   async getTransactionList(query: GetTransactionListDto) {
     const {
-      createdDate,
+      startDate,
+      endDate,
       accountName,
       toBankName,
       toBankAccount,
@@ -176,10 +177,10 @@ export class ExternalTopupService {
     } = query;
 
     const where: Prisma.TopupTransactionWhereInput = {
-      ...(createdDate && {
+      ...(startDate && endDate && {
         createdAt: {
-          gte: new Date(createdDate),
-          lt: new Date(new Date(createdDate).getTime() + 24 * 60 * 60 * 1000),
+          gte: new Date(startDate),
+          lt: new Date(endDate),
         },
       }),
       ...(accountName && {

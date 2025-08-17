@@ -15,7 +15,11 @@ export enum TransactionType {
 export class GetTransactionListDto {
   @IsOptional()
   @IsDateString()
-  createdDate?: string; // ISO format (e.g., 2025-08-03)
+  startDate?: string; // ISO format (e.g., 2025-08-03)
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string; // ISO format (e.g., 2025-08-03)
 
   @IsOptional()
   @IsString()
