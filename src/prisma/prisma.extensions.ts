@@ -2,7 +2,7 @@ import { Prisma, Roles } from "@prisma/client";
 
 export function createUserTrackingExtension(getCurrentUser: () => { id: any, role: any }) {
     const excludeModelCreate = ['TransactionHistory', 'User']
-    const excludeModelFindMany = ['User', "ProductPrice", "ExternalUser", "ExternalProduct"]
+    const excludeModelFindMany = ['User', "ProductPrice", "ExternalUser", "ExternalProduct", "BankAccount"]
 
 
     return Prisma.defineExtension({
