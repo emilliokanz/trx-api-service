@@ -31,7 +31,7 @@ import { ExternalAuthService } from 'src/externalAuth/externalAuth.service';
     }
     
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.SuperAdmin])
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('bank-account-get')
     async getBankAccount() {
       return this.externalTopupService.getBankAccount();
