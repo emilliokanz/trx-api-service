@@ -183,9 +183,11 @@ export class ExternalTransactionService {
 
     const totalCost = cost * customer_no.length
 
-    const superDdminBalance = await this.getAdminBalanceFn(type || "")
+    const superAdminBalance = await this.getAdminBalanceFn(type || "")
+    console.log(superAdminBalance)
 
-    if (totalCost > superDdminBalance.data) {
+    if (totalCost > superAdminBalance.data) {
+      console.log("[BALANCE] Super Admin balance to low")
       return new ApiResponseDto(errorMap[1002], null, '1002')
     }
 
@@ -208,6 +210,7 @@ export class ExternalTransactionService {
       }
 
       if (adminTotalCost > findUser?.balance) {
+        console.log("[BALANCE]Admin balance to low")
         return new ApiResponseDto(errorMap[1002], null, '1002')
       }
 
@@ -302,6 +305,7 @@ export class ExternalTransactionService {
       if (process.env.NODE_ENV !== "dev") {
         try {
           response = await this.httpAgentPost(body, '', 'APIBOSS', form);
+
           const transaction = response.data?.data;
 
           if (!transaction) {
@@ -325,6 +329,13 @@ export class ExternalTransactionService {
 
           if (status == 0 || status == '0' || status == 'Sukses' || status == 'Successful') {
             status = TransactionStatus.SUCCESS
+
+            try {
+              await this.owner.divideOwnerProfit(profit || 0, 'EXT');
+            } catch (e: any) {
+              console.error('[PROFIT] Failed dividing profit')
+            }
+
           } else {
             status = TransactionStatus.FAILED
           }
@@ -358,6 +369,7 @@ export class ExternalTransactionService {
           }
 
         } catch (error: any) {
+          console.log(error, "[APIBOSS] error")
           await this.prisma.externalTransactionHistory.update({
             where: {
               ref_id
@@ -459,20 +471,48 @@ export class ExternalTransactionService {
     }
   }
 
-  async getAdminBalanceFn(type: string | null) {
-    if (type = "APIBOSS") {
-      const getBalance = await this.prisma.supplierBalances.findUnique({
-        where: {
-          name: "APIBOSS"
+  async getAdminBalanceFn(type?: string | null) {
+    if (type == "APIBOSS" || type == null) {
+
+      let balance = 0;
+      let response: any = {};
+
+
+      const action = 'get_saldo'
+      const sign = generateSignature(
+        process.env.APIBOSS_USERNAME || '',
+        process.env.APIBOSS_APIKEY || '',
+        action
+      )
+
+      const body = {
+        username: process.env.APIBOSS_USERNAME,
+        action,
+        sign
+      };
+
+      try {
+        response = await this.httpAgentPost(body, '', 'APIBOSS', null);
+        const transaction = response.data?.data;
+        balance = transaction.total_balance
+      } catch (e) {
+        console.log(e, "errors")
+        const getBalance = await this.prisma.supplierBalances.findUnique({
+          where: {
+            name: "APIBOSS"
+          }
+        })
+
+        balance = getBalance?.balance || 0
+
+        if (!getBalance) {
+          this.logger.debug(`[ADMIN BALANCE] balance for Supplier ${type || 'APIBOSS'} not found`)
+          return new ApiResponseDto("success", 0, '0000')
         }
-      })
-
-      if (!getBalance) {
-        this.logger.debug(`[ADMIN BALANCE] balance for Supplier ${type} not found`)
-        return new ApiResponseDto("success", 0, '0000')
-
       }
-      return new ApiResponseDto("success", getBalance?.balance, '0000')
+
+
+      return new ApiResponseDto("success", balance, '0000')
 
     } else {
       const body = {
@@ -749,16 +789,20 @@ export class ExternalTransactionService {
   }
 
   async httpAgentPost(requestBody: any, url: string, supplierType: string, formData: any) {
-    if (supplierType == "APIBOSS") {
-      const response = await axios.post(
-        process.env.APIBOSS_URL + url,
-        formData,
-        {
-          headers: formData.getHeaders()
-        }
-      );
+    if (supplierType === "APIBOSS") {
+    const isFormData = formData !== null && formData !== undefined;
 
-      this.logger.debug(`[EXTERNAL TRANSACTION] API RESPONSE ${supplierType}`, response.data)
+    const response = await axios.post(
+      process.env.APIBOSS_URL + url,
+      isFormData ? formData : requestBody,
+      {
+        headers: isFormData
+          ? formData.getHeaders()
+          : { 'Content-Type': 'application/json' }
+      }
+    );
+
+      this.logger.debug(`[EXTERNAL TRANSACTION] API RESPONSE ${supplierType}`, response.data.data)
 
       return response
     } else {

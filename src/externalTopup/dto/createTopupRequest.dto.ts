@@ -6,13 +6,19 @@ export class CreateTopupRequestDto {
   amount: number;
 
   @IsString()
-  accountNo: string;
+  toAccount: string;
 
   @IsString()
-  accountName: string;
+  toAccountName: string;
 
   @IsString()
-  fromBankAccount: string;
+  toBankName: string;
+
+  @IsString()
+  fromAccount: string;
+
+  @IsString()
+  fromAccountName: string;
 
   @IsString()
   fromBankName: string;

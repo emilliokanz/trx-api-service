@@ -307,12 +307,14 @@ model TopupTransaction {
   approver         Int?     // Nullable: filled after status change
   refNo            String   // Used to match to payment receipt
   amount           Float
-  accountNo        String
-  accountName      String
+  accountNo        String   // super admin account no
+  accountName      String   // super admin account name
   fromBankAccount  String
   toBankAccount    String
   fromBankName     String
   toBankName       String
+  fromBankAccountName String?
+  toBankAccountName String?
   txType           TxType
   status           TransactionStatus
   createdBy        Int?

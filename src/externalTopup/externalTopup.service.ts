@@ -11,7 +11,7 @@ import PaginationIface from "src/interface/paginationIface";
 
 @Injectable()
 export class ExternalTopupService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async addBankAccount(payload: AddBankAccountDto) {
     const findBankAccount = await this.prisma.bankAccount.findMany({
@@ -22,11 +22,11 @@ export class ExternalTopupService {
       throw new HttpException(
         new ApiResponseDto(
           errorMap[4009] +
-            payload.accountNo +
-            "-" +
-            payload.accountName +
-            "-" +
-            payload.bankName,
+          payload.accountNo +
+          "-" +
+          payload.accountName +
+          "-" +
+          payload.bankName,
           null,
           "4009"
         ),
@@ -94,12 +94,14 @@ export class ExternalTopupService {
           approver: null,
           refNo: "TP" + generateReferenceId(),
           amount: payload.amount,
-          accountNo: payload.accountNo,
-          accountName: payload.accountName,
-          fromBankAccount: payload.fromBankAccount,
-          toBankAccount: destinationBankAccount.accountNo,
+          accountNo: "-",
+          accountName: "-",
+          fromBankAccount: payload.fromAccount,
+          toBankAccount: payload.toAccount,
           fromBankName: payload.fromBankName,
-          toBankName: destinationBankAccount.bankName,
+          toBankName: payload.toBankName,
+          fromBankAccountName: payload.fromAccountName,
+          toBankAccountName: payload.toAccountName,
           txType: payload.txType,
           status: "PENDING",
         },
@@ -124,7 +126,8 @@ export class ExternalTopupService {
   async updateTopupRequestStatus(
     id: number,
     status: TransactionStatus,
-    approverId: number
+    approverId: number,
+    amount: number
   ) {
     const existingTransaction = await this.prisma.topupTransaction.findUnique({
       where: { id },
@@ -146,19 +149,38 @@ export class ExternalTopupService {
       data: {
         status,
         approver: approverId,
+        amount: amount == 0 ? existingTransaction.amount : amount
       },
     });
 
-    await this.prisma.externalUser.update({
-      where: {
-        id: existingTransaction.requestorId,
-      },
-      data: {
-        balance: {
-          increment: existingTransaction.amount,
+    let data: Prisma.ExternalUserUpdateInput = {};
+
+    if (status == TransactionStatus.SUCCESS) {
+      let difference = 0
+      if (amount != 0) {
+        difference =  existingTransaction.amount - amount
+      }
+      if (updatedTransaction.txType == "DEPOSIT") {
+        data = {
+          balance: {
+            increment: existingTransaction.amount - difference
+          }
+        }
+      } else if (updatedTransaction.txType == "WITHDRAWAL") {
+        data = {
+          balance: {
+            decrement: existingTransaction.amount - difference
+          }
+        }
+      }
+      await this.prisma.externalUser.update({
+        where: {
+          id: existingTransaction.requestorId,
         },
-      },
-    });
+        data,
+      });
+    }
+
 
     return new ApiResponseDto("success", updatedTransaction, "0000");
   }

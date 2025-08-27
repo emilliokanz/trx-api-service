@@ -60,8 +60,8 @@ export class ExternalTransactionController {
     @UserRoles([Roles.SuperAdmin])
     @Post('/admin-balance')
     @HttpCode(200)
-    async getAdminBalance(@Body() payload: {type: string | null}) {
-        return await this.extTrxService.getAdminBalanceFn(payload.type)
+    async getAdminBalance() {
+        return await this.extTrxService.getAdminBalanceFn()
     }
 
     @UseGuards(AuthGuard)

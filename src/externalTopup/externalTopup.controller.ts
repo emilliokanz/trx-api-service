@@ -54,7 +54,7 @@ import { ExternalAuthService } from 'src/externalAuth/externalAuth.service';
     async updateTopupRequest(@Body() payload: any, @Req() req: any) {
       const user = await this.extAuthService.getUserDetail(req.headers.authorization)
 
-      return this.externalTopupService.updateTopupRequestStatus(payload.id, payload.status, user.id);
+      return this.externalTopupService.updateTopupRequestStatus(payload.id, payload.status, user.id, +payload.amount);
     }
     
     @UseGuards(AuthGuard)
