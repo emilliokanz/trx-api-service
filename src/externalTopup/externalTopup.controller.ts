@@ -64,5 +64,13 @@ import { ExternalAuthService } from 'src/externalAuth/externalAuth.service';
     async getTransactionList(@Body() query: GetTransactionListDto) {
       return this.externalTopupService.getTransactionList(query);
     }
+
+    @UseGuards(AuthGuard)
+     @UserRoles([Roles.SuperAdmin, Roles.Admin])
+    @Post('transaction/:id')
+    @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+    async getTransactionById(@Query() id: number) {
+      return this.externalTopupService.getTransasctionById(+id);
+    }
   }
   

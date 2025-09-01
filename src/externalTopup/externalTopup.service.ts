@@ -158,7 +158,7 @@ export class ExternalTopupService {
     if (status == TransactionStatus.SUCCESS) {
       let difference = 0
       if (amount != 0) {
-        difference =  existingTransaction.amount - amount
+        difference = existingTransaction.amount - amount
       }
       if (updatedTransaction.txType == "DEPOSIT") {
         data = {
@@ -240,5 +240,26 @@ export class ExternalTopupService {
     };
 
     return new ApiResponseDto("success", returnData, "0000");
+  }
+
+  async getTransasctionById(id: number) {
+    const findTransaction = await this.prisma.topupTransaction.findUnique({
+      where: {
+        id
+      }
+    })
+    if (!findTransaction) {
+      throw new HttpException(
+        new ApiResponseDto(
+          errorMap[4004] + "topupTransactionId " + id,
+          null,
+          "4004"
+        ),
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    return new ApiResponseDto("success", findTransaction, "0000");
+
   }
 }

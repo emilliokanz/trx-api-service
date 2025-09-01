@@ -227,6 +227,7 @@ model ExternalProduct {
   item_name                String
   server_name              String
   group_name               String
+  category                 String?
   stock                    Int
   min_order                Int
   price                    Int
