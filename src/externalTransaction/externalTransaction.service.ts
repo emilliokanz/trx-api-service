@@ -184,9 +184,8 @@ export class ExternalTransactionService {
     const totalCost = cost * customer_no.length
 
     const superAdminBalance = await this.getAdminBalanceFn(type || "")
-    console.log(superAdminBalance)
 
-    if (totalCost > superAdminBalance.data) {
+    if (totalCost > superAdminBalance.data.deposit) {
       console.log("[BALANCE] Super Admin balance to low")
       return new ApiResponseDto(errorMap[1002], null, '1002')
     }
@@ -512,7 +511,7 @@ export class ExternalTransactionService {
       }
 
 
-      return new ApiResponseDto("success", balance, '0000')
+      return new ApiResponseDto("success", {deposit: balance}, '0000')
 
     } else {
       const body = {
