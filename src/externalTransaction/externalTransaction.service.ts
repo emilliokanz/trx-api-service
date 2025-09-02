@@ -470,7 +470,7 @@ export class ExternalTransactionService {
     }
   }
 
-  async getAdminBalanceFn(type?: string | null) {
+  async getAdminBalanceFn(type?: string | null, user?: any) {
     if (type == "APIBOSS" || type == null) {
 
       let balance = 0;

@@ -66,11 +66,11 @@ import { ExternalAuthService } from 'src/externalAuth/externalAuth.service';
     }
 
     @UseGuards(AuthGuard)
-     @UserRoles([Roles.SuperAdmin, Roles.Admin])
-    @Post('transaction/:id')
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
+    @Post('transaction')
     @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
-    async getTransactionById(@Query() id: number) {
-      return this.externalTopupService.getTransasctionById(+id);
+    async getTransactionById(@Body() query: {id: number}) {
+      return this.externalTopupService.getTransasctionById(+query.id);
     }
   }
   

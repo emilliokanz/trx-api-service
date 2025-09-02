@@ -57,11 +57,13 @@ export class ExternalTransactionController {
 
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.SuperAdmin])
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/admin-balance')
     @HttpCode(200)
-    async getAdminBalance() {
-        return await this.extTrxService.getAdminBalanceFn()
+    async getAdminBalance(@Req() req: any) {
+        const user = await this.authService.getUserDetail(req.headers.authorization)
+
+        return await this.extTrxService.getAdminBalanceFn(null, user)
     }
 
     @UseGuards(AuthGuard)
