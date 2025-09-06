@@ -24,20 +24,23 @@ import { pipeline } from 'stream';
 import * as path from 'path';
 import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction.dto';
 import { GetTransaction } from './dto/transaction/getTransaction.dto';
+import { AuthService } from 'src/auth/auth.service';
 const pump = util.promisify(pipeline);
 
 
 @Controller('transactions')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(private readonly transactionService: TransactionService, private readonly authService: AuthService) {}
 
   @Post()
   async createTransaction(@Body() transactionData: TransactionRequestDto, @Req() req: any) {
     const apiKey = req.headers['api-key'];
+    const user = await this.authService.getUserDetail(req.headers.authorization)
+
 
     return this.transactionService.addTransaction(
       transactionData,
-      apiKey || '',
+      apiKey || ''
     );
   }
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
@@ -65,7 +68,7 @@ export class TransactionController {
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/request')
   async createPaymentTransactionRequest(@Body() transactionData: any) {
-    return this.transactionService.requestTransaction(transactionData);
+    return this.transactionService.requestTransactionBypass(transactionData);
   }
   
   @UserRoles([Roles.Admin, Roles.SuperAdmin])

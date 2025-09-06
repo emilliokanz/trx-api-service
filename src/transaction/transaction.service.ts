@@ -317,6 +317,48 @@ export class TransactionService {
     }
   }
 
+  async requestTransactionBypass(transactionData: TransactionRequest) {
+    const { buyer_sku_code, customer_no, ref_id } =
+      transactionData;
+
+    try {
+      const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', ref_id);
+
+      const requestBody = {
+        username: process.env.DIGI_USERNAME ?? '',
+        buyer_sku_code: buyer_sku_code,
+        customer_no: customer_no,
+        ref_id: ref_id,
+        sign: sign,
+      };
+
+      const response = await httpAgentPost(
+        requestBody,
+        'https://api.digiflazz.com/v1/transaction',
+      );
+
+
+      console.log('Success Digiflazz Request Transaction', response.data);
+
+      // await this.getPaymentTransactionStatus(ref_id)
+
+      return response.data;
+
+    } catch (error) {
+      console.log(error)
+      if (error.response.data.data) {
+        await this.telegramLib.sendMessage(error.response.data.data, 'FAILED')
+        console.log('Error Digiflazz Request Transaction', error.response.data.data);
+      } else {
+        await this.telegramLib.sendMessage(error.message.toString(), 'FAILED')
+        console.log('Error processing transaction', error.message)
+      }
+
+      // Return deducted balance
+      return new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   async getPaymentTransactionStatus(ref_id: string) {
     const transaction = await this.getTransactionHistoryById(ref_id)
     const product = await this.prisma.productPrice.findUnique({
@@ -423,7 +465,7 @@ export class TransactionService {
 
     const validApiKey = await bcrypt.compare(apiKey, findUser[0].apiKey);
 
-    if (!validApiKey) {
+    if (!validApiKey ) {
       return 'Invalid API key';
     }
 
