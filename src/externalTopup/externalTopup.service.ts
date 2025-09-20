@@ -4,7 +4,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
 import { CreateTopupRequestDto } from "./dto/createTopupRequest.dto";
-import { Prisma, TransactionStatus } from "@prisma/client";
+import { ExternalUser, Prisma, Roles, TransactionStatus } from "@prisma/client";
 import { GetTransactionListDto } from "./dto/getTransactionList.dto";
 import generateReferenceId from "src/utils/generateReferenceId";
 import PaginationIface from "src/interface/paginationIface";
@@ -76,12 +76,24 @@ export class ExternalTopupService {
       where: { id: bankAccountId },
     });
 
-    if (!destinationBankAccount) {
+    if (payload.txType == "DEPOSIT" && !destinationBankAccount) {
       throw new HttpException(
         new ApiResponseDto(
           errorMap[4010] + "bankAccountId " + bankAccountId,
           null,
           "4010"
+        ),
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    // 3. Check if admin balance is enough
+    if(payload.txType == 'WITHDRAWAL' && user.balance < payload.amount){
+      throw new HttpException(
+        new ApiResponseDto(
+          errorMap[1002] + " " + user.balance,
+          null,
+          "1002"
         ),
         HttpStatus.BAD_REQUEST
       );
@@ -185,7 +197,7 @@ export class ExternalTopupService {
     return new ApiResponseDto("success", updatedTransaction, "0000");
   }
 
-  async getTransactionList(query: GetTransactionListDto) {
+  async getTransactionList(query: GetTransactionListDto, user: ExternalUser) {
     const {
       startDate,
       endDate,
@@ -195,7 +207,7 @@ export class ExternalTopupService {
       txType,
       status,
       page,
-      size,
+      size
     } = query;
 
     const where: Prisma.TopupTransactionWhereInput = {
@@ -220,6 +232,9 @@ export class ExternalTopupService {
       ...(status && {
         status,
       }),
+      ...(user.role == Roles.Admin && {
+        requestorId: user.id
+      })
     };
 
     const [data, total] = await this.prisma.$transaction([
@@ -242,7 +257,7 @@ export class ExternalTopupService {
     return new ApiResponseDto("success", returnData, "0000");
   }
 
-  async getTransasctionById(id: number) {
+  async getTransasctionById(id: number, user: ExternalUser) {
     const findTransaction = await this.prisma.topupTransaction.findUnique({
       where: {
         id
@@ -259,7 +274,17 @@ export class ExternalTopupService {
       );
     }
 
-    return new ApiResponseDto("success", findTransaction, "0000");
+    if(user.role == Roles.Admin && findTransaction.requestorId !== user.id){
+      throw new HttpException(
+        new ApiResponseDto(
+          errorMap[4004] + "topupTransactionId " + id,
+          null,
+          "4004"
+        ),
+        HttpStatus.BAD_REQUEST
+      );
+    }
 
+    return new ApiResponseDto("success", findTransaction, "0000");
   }
 }

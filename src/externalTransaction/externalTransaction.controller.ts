@@ -4,7 +4,7 @@ import { ExternalTxRequestDto } from "./dto/extTxRequest.dto";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
 import { Validate } from "class-validator";
-import { validateDto } from "src/utils/payloadValidation";
+import { validateDto, verifyPayload } from "src/utils/payloadValidation";
 import { AuthGuard } from "src/auth/auth.guard";
 import { UserRoles } from "src/auth/roles.decorator";
 import { Roles } from "@prisma/client";
@@ -25,6 +25,15 @@ export class ExternalTransactionController {
     @Post('/request')
     @HttpCode(200)
     async requestTransaction(@Body() payload: ExternalTxRequestDto, @Req() req: any) {
+         if(!req.headers['x-sign']){
+            return new ApiResponseDto(errorMap[4011], null, '4011');
+        }
+
+        const verify = verifyPayload(payload, req.headers['x-sign'])
+
+        if(!verify){
+            return new ApiResponseDto(errorMap[4011], null, '4011');
+        }
 
         const apiKey = req.headers['api-key'];
 
@@ -41,6 +50,15 @@ export class ExternalTransactionController {
     @Post('/request-web')
     @HttpCode(200)
     async requestTransactionWeb(@Body() payload: ExternalTxRequestDto, @Req() req: any) {
+         if(!req.headers['x-sign']){
+            return new ApiResponseDto(errorMap[4011], null, '4011');
+        }
+
+        const verify = verifyPayload(payload, req.headers['x-sign'])
+
+        if(!verify){
+            return new ApiResponseDto(errorMap[4011], null, '4011');
+        }
 
         const user = await this.authService.getUserDetail(req.headers.authorization)
 
@@ -78,7 +96,9 @@ export class ExternalTransactionController {
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/history')
     @HttpCode(200)
-    async getTxHistory(@Body() payload: any) {
+    async getTxHistory(@Body() payload: any, @Req() req: any) {
+        const user = await this.authService.getUserDetail(req.headers.authorization)
+
         return await this.extTrxService.getAllTxHistoryByBatch(
             payload.page || '',
             payload.size || '',
@@ -86,7 +106,8 @@ export class ExternalTransactionController {
             payload.start_date || '',
             payload.end_date || '',
             payload.batch_id || '',
-            payload.ref_id || ''
+            payload.ref_id || '',
+            user
         )
     }
 
@@ -94,8 +115,10 @@ export class ExternalTransactionController {
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/history-detail')
     @HttpCode(200)
-    async getTxHistoryDetail(@Body() payload: any) {
-        return await this.extTrxService.getTxHistoryByBatchId(payload.batch_id)
+    async getTxHistoryDetail(@Body() payload: any, @Req() req: any) {
+        const user = await this.authService.getUserDetail(req.headers.authorization)
+
+        return await this.extTrxService.getTxHistoryByBatchId(payload.batch_id, user)
     }
 
     @UseGuards(AuthGuard)

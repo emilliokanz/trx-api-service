@@ -19,7 +19,7 @@ import PaginationIface from "src/interface/paginationIface";
 import { PreTxDetailDto } from "./dto/preTxDetail.dto";
 import { SchedulerService } from "src/scheduler/scheduler.service";
 import * as FormData from "form-data";
-import { ExternalProduct, Prisma, Roles } from "@prisma/client";
+import { ExternalProduct, ExternalUser, Prisma, Roles } from "@prisma/client";
 
 @Injectable()
 export class ExternalTransactionService {
@@ -470,7 +470,23 @@ export class ExternalTransactionService {
     }
   }
 
-  async getAdminBalanceFn(type?: string | null, user?: any) {
+  async getAdminBalanceFn(type?: string | null, user?: ExternalUser) {
+    if (user && user.role == Roles.Admin){
+      const findUser = await this.prisma.externalUser.findFirst({
+        where: {
+          id: user.id
+        }
+      })
+      if (!findUser) {
+        throw new HttpException(
+          new ApiResponseDto(errorMap[1004], null, "1004"),
+          HttpStatus.BAD_REQUEST
+        );
+      }
+
+      return new ApiResponseDto("success", { deposit: findUser.balance }, '0000')
+    }
+
     if (type == "APIBOSS" || type == null) {
 
       let balance = 0;
@@ -511,7 +527,7 @@ export class ExternalTransactionService {
       }
 
 
-      return new ApiResponseDto("success", {deposit: balance}, '0000')
+      return new ApiResponseDto("success", { deposit: balance }, '0000')
 
     } else {
       const body = {
@@ -644,7 +660,8 @@ export class ExternalTransactionService {
   }
 
   async getTxHistoryByBatchId(
-    batch_id: string
+    batch_id: string,
+    user: any
   ) {
     const data = await this.prisma.externalTransactionBatch.findFirst({
       where: {
@@ -669,7 +686,8 @@ export class ExternalTransactionService {
     start_date: string,
     end_date: string,
     batch_id: string,
-    ref_id: string
+    ref_id: string,
+    user: any
   ) {
     const where: any = {
       transaction: {
@@ -702,6 +720,9 @@ export class ExternalTransactionService {
 
     if (ref_id !== '') {
       where.transaction.some.ref_id = ref_id;
+    }
+    if(user.role == Roles.Admin){
+      where.transaction.createdBy = user.id
     }
 
     const data = await this.prisma.externalTransactionBatch.findMany({
@@ -789,17 +810,17 @@ export class ExternalTransactionService {
 
   async httpAgentPost(requestBody: any, url: string, supplierType: string, formData: any) {
     if (supplierType === "APIBOSS") {
-    const isFormData = formData !== null && formData !== undefined;
+      const isFormData = formData !== null && formData !== undefined;
 
-    const response = await axios.post(
-      process.env.APIBOSS_URL + url,
-      isFormData ? formData : requestBody,
-      {
-        headers: isFormData
-          ? formData.getHeaders()
-          : { 'Content-Type': 'application/json' }
-      }
-    );
+      const response = await axios.post(
+        process.env.APIBOSS_URL + url,
+        isFormData ? formData : requestBody,
+        {
+          headers: isFormData
+            ? formData.getHeaders()
+            : { 'Content-Type': 'application/json' }
+        }
+      );
 
       this.logger.debug(`[EXTERNAL TRANSACTION] API RESPONSE ${supplierType}`, response.data.data)
 

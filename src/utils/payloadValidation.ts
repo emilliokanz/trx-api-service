@@ -1,5 +1,6 @@
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
+import * as crypto from 'crypto'
 
 export async function validateDto<T>(
   dtoClass: new () => T,
@@ -23,4 +24,21 @@ export async function validateDto<T>(
   );
 
   return { errors, dto };
+}
+
+export async function verifyPayload(body: any, signature: string){
+  const expectedSig = signPayload(body);
+  return crypto.timingSafeEqual(
+    Buffer.from(expectedSig, "hex"),
+    Buffer.from(signature, "hex")
+  );
+}
+
+function signPayload(body: any) {
+  const bodyString = JSON.stringify(body);
+  const secret = process.env.PAYLOAD_SECRET || ''
+  return crypto
+    .createHmac("sha256", secret)
+    .update(bodyString)
+    .digest("hex");
 }

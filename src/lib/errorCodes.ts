@@ -22,5 +22,7 @@ export const errorMap = {
     4008: 'failed updating product',
     4009: 'value already exist' + ':' + ' ',
     4010: 'value not found' + ':' + ' ',
+    4011: 'missing signature',
+    4012: 'not verified',
     5000: 'something wrong, please contact support'
   };
