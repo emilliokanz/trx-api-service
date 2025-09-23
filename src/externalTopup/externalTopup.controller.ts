@@ -45,7 +45,7 @@ export class ExternalTopupController {
   @Post('create-topup')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async createTopupRequest(@Body() payload: CreateTopupRequestDto, @Req() req: any) {
-    if (!req.headers['x-sign']) {
+    if (!req.headers['x-sign'] || req.headers['x-sign'] == undefined) {
       return new ApiResponseDto(errorMap[4011], null, '4011');
     }
 
@@ -64,7 +64,7 @@ export class ExternalTopupController {
   @Post('update-topup')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async updateTopupRequest(@Body() payload: any, @Req() req: any) {
-    if (!req.headers['x-sign']) {
+    if (!req.headers['x-sign'] || req.headers['x-sign'] == undefined) {
       return new ApiResponseDto(errorMap[4011], null, '4011');
     }
 

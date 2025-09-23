@@ -25,15 +25,15 @@ export class ExternalTransactionController {
     @Post('/request')
     @HttpCode(200)
     async requestTransaction(@Body() payload: ExternalTxRequestDto, @Req() req: any) {
-         if(!req.headers['x-sign']){
-            return new ApiResponseDto(errorMap[4011], null, '4011');
-        }
+        // if(!req.headers['x-sign'] || req.headers['x-sign'] == undefined){
+        //     return new ApiResponseDto(errorMap[4011], null, '4011');
+        // }
 
-        const verify = verifyPayload(payload, req.headers['x-sign'])
+        // const verify = verifyPayload(payload, req.headers['x-sign'])
 
-        if(!verify){
-            return new ApiResponseDto(errorMap[4011], null, '4011');
-        }
+        // if(!verify){
+        //     return new ApiResponseDto(errorMap[4011], null, '4011');
+        // }
 
         const apiKey = req.headers['api-key'];
 
@@ -50,7 +50,7 @@ export class ExternalTransactionController {
     @Post('/request-web')
     @HttpCode(200)
     async requestTransactionWeb(@Body() payload: ExternalTxRequestDto, @Req() req: any) {
-         if(!req.headers['x-sign']){
+         if(!req.headers['x-sign'] || req.headers['x-sign'] == undefined){
             return new ApiResponseDto(errorMap[4011], null, '4011');
         }
 
