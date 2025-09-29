@@ -667,10 +667,12 @@ export class ExternalTransactionService {
     batch_id: string,
     user: any,
   ) {
-    const where: any = { batch_id };
+    let where: any = { batch_id };
 
     if (user.role == Roles.Admin) {
-      where.transaction = { createdBy: user.id };
+      where = {
+          createdBy: user.id 
+      };
     }
 
     const data = await this.prisma.externalTransactionBatch.findFirst({
