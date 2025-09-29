@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, Roles } from '@prisma/client';
+import { ExternalUser, Prisma, Roles } from '@prisma/client';
 import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 import { errorMap } from 'src/lib/errorCodes';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt'
 
 import hash from 'src/utils/hash';
 import PaginationIface from 'src/interface/paginationIface';
+import { encryptSecret } from 'src/utils/payloadValidation';
 
 @Injectable()
 export class ExternalAuthService {
@@ -96,21 +97,31 @@ export class ExternalAuthService {
     return new ApiResponseDto("success", userData, "0000")
   }
 
-  async generateApiKey(username: string) {
-    const findUser = await this.prisma.externalUser.findMany({
-      where: { username },
-    });
+  async generateApiKey(user: any, username?: string ) {
+    let findUser : ExternalUser | null
+    if(username !== undefined && user.role == Roles.SuperAdmin){
+      findUser = await this.prisma.externalUser.findFirst({
+          where: { username },
+      });
+    } else {
+      findUser = await this.prisma.externalUser.findFirst({
+        where: {
+          id: user.id
+        }
+      })
+    }
+
 
     if (!findUser) {
-      return new ApiResponseDto(errorMap[1004], null, "1004")
+      throw new HttpException(new ApiResponseDto(errorMap[1004], null, "1004"), HttpStatus.BAD_REQUEST)
     }
 
     const apiKey = uuid.v4(); // Generates a random UUID
 
-    const hashApiKey = await hash(apiKey);
+    const hashApiKey = encryptSecret(apiKey);
 
     await this.prisma.externalUser.update({
-      where: { id: findUser[0].id },
+      where: { id: findUser.id },
       data: {
         apiKey: hashApiKey,
       },

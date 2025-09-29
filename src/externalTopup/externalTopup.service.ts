@@ -88,7 +88,7 @@ export class ExternalTopupService {
     }
 
     // 3. Check if admin balance is enough
-    if(payload.txType == 'WITHDRAWAL' && user.balance < payload.amount){
+    if (payload.txType == 'WITHDRAWAL' && user.balance < payload.amount) {
       throw new HttpException(
         new ApiResponseDto(
           errorMap[1002] + " " + user.balance,
@@ -240,6 +240,13 @@ export class ExternalTopupService {
     const [data, total] = await this.prisma.$transaction([
       this.prisma.topupTransaction.findMany({
         where,
+        include: {
+          user: {
+            select: {
+              username: true
+            }
+          }
+        },
         skip: ((page || 1) - 1) * (size || 10),
         take: size,
         orderBy: { createdAt: "desc" },
@@ -247,8 +254,13 @@ export class ExternalTopupService {
       this.prisma.topupTransaction.count({ where }),
     ]);
 
+    const result = data.map(({ user, ...rest }: any) => ({
+      ...rest,
+      username: user?.username,
+    }));
+    
     const returnData = {
-      data,
+      data: result,
       totalData: total,
       page,
       pageLength: Math.ceil(total / (size || 10))
@@ -261,7 +273,14 @@ export class ExternalTopupService {
     const findTransaction = await this.prisma.topupTransaction.findUnique({
       where: {
         id
-      }
+      },
+      include: {
+        user: {
+          select: {
+            username: true
+          }
+        }
+      },
     })
     if (!findTransaction) {
       throw new HttpException(
@@ -274,7 +293,7 @@ export class ExternalTopupService {
       );
     }
 
-    if(user.role == Roles.Admin && findTransaction.requestorId !== user.id){
+    if (user.role == Roles.Admin && findTransaction.requestorId !== user.id) {
       throw new HttpException(
         new ApiResponseDto(
           errorMap[4004] + "topupTransactionId " + id,
@@ -284,6 +303,8 @@ export class ExternalTopupService {
         HttpStatus.BAD_REQUEST
       );
     }
+
+    findTransaction['username'] = findTransaction.user?.username
 
     return new ApiResponseDto("success", findTransaction, "0000");
   }

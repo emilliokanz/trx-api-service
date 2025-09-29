@@ -161,6 +161,8 @@ model ExternalUser {
   ExternalTransactionBatch   ExternalTransactionBatch[]
   ExternalTransactionHistory ExternalTransactionHistory[]
   ExternalUserBalanceHistory ExternalUserBalanceHistory[]
+
+  TopupTransaction TopupTransaction[]
 }
 
 model ExternalAdminUsers {
@@ -319,6 +321,7 @@ model TopupTransaction {
   txType           TxType
   status           TransactionStatus
   createdBy        Int?
+  user             ExternalUser?                  @relation(fields: [requestorId], references: [id])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

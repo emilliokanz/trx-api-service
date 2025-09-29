@@ -20,6 +20,7 @@ import { PreTxDetailDto } from "./dto/preTxDetail.dto";
 import { SchedulerService } from "src/scheduler/scheduler.service";
 import * as FormData from "form-data";
 import { ExternalProduct, ExternalUser, Prisma, Roles } from "@prisma/client";
+import { decryptSecret, signPayload, signPayloadAdmin, verifyPayloadAdmin } from "src/utils/payloadValidation";
 
 @Injectable()
 export class ExternalTransactionService {
@@ -32,10 +33,10 @@ export class ExternalTransactionService {
     private extProduct: ExternalProductService,
   ) { }
 
-  async addTransaction(transactionData: ExternalTxRequestDto, apiKey: string, isWeb?: boolean, role?: string) {
+  async addTransaction(transactionData: ExternalTxRequestDto, username: string, isWeb?: boolean, role?: string, signature?: string, body?: any) {
     const batch_id = "B" + generateReferenceId()
 
-    const transactionDetail: PreTxDetailDto[] | any = await this.preTransaction(transactionData, apiKey, isWeb, role)
+    const transactionDetail: PreTxDetailDto[] | any = await this.preTransaction(transactionData, username, isWeb, role, signature, body)
 
     if (transactionDetail.errorCode) {
       return transactionDetail
@@ -107,7 +108,7 @@ export class ExternalTransactionService {
     return new ApiResponseDto('sucess', null, '0000')
   }
 
-  async preTransaction(transactionData: ExternalTxRequestDto, apiKey: string, isWeb?: boolean, role?: string) {
+  async preTransaction(transactionData: ExternalTxRequestDto, usernameHeader?: string, isWeb?: boolean, role?: string, signature?: string, body?: any) {
     const { code, customer_no, username } = transactionData
 
     const extProduct = await this.prisma.externalProduct.findFirst({
@@ -132,7 +133,7 @@ export class ExternalTransactionService {
       await this.getProductList()
     }
 
-    if (!isWeb && !apiKey) {
+    if (!isWeb && !usernameHeader) {
       return new ApiResponseDto(errorMap[4002], null, '4002')
     }
 
@@ -146,7 +147,7 @@ export class ExternalTransactionService {
 
     const findUser = await this.prisma.externalUser.findMany({
       where: {
-        username
+        username: username || usernameHeader
       }
     });
 
@@ -155,9 +156,10 @@ export class ExternalTransactionService {
     }
 
     if (!isWeb) {
-      const validApiKey = await bcrypt.compare(apiKey, findUser[0].apiKey || '');
+      const decryptApiKey = decryptSecret(findUser[0].apiKey || '')
+      const validPayload = verifyPayloadAdmin(body, signature || '', decryptApiKey)
 
-      if (!validApiKey) {
+      if (!validPayload) {
         return new ApiResponseDto(errorMap[4003], null, '4003')
       }
     }
@@ -183,9 +185,9 @@ export class ExternalTransactionService {
 
     const totalCost = cost * customer_no.length
 
-    const superAdminBalance = await this.getAdminBalanceFn(type || "")
+    const superAdminBalance = await this.getAdminBalanceFn(true, type || "")
 
-    if (totalCost > superAdminBalance.data.deposit) {
+    if (totalCost > superAdminBalance?.data.deposit) {
       console.log("[BALANCE] Super Admin balance to low")
       return new ApiResponseDto(errorMap[1002], null, '1002')
     }
@@ -470,8 +472,28 @@ export class ExternalTransactionService {
     }
   }
 
-  async getAdminBalanceFn(type?: string | null, user?: ExternalUser) {
-    if (user && user.role == Roles.Admin){
+  async getAdminBalanceFn(isWeb: boolean, type?: string | null, user?: any) {
+    if (!isWeb) {
+      const findUser = await this.prisma.externalUser.findFirst({
+        where: {
+          username: user.username
+        }
+      })
+      if (!findUser) {
+        throw new HttpException(
+          new ApiResponseDto(errorMap[1004], null, "1004"),
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      const decryptApiKey = decryptSecret(findUser.apiKey || '')
+      const validPayload = verifyPayloadAdmin(user?.body, user.signature || '', decryptApiKey)
+
+      if (!validPayload) {
+        return new ApiResponseDto(errorMap[4003], null, '4003')
+      }
+    }
+
+    if (user && user.role == Roles.Admin) {
       const findUser = await this.prisma.externalUser.findFirst({
         where: {
           id: user.id
@@ -528,28 +550,10 @@ export class ExternalTransactionService {
 
 
       return new ApiResponseDto("success", { deposit: balance }, '0000')
-
-    } else {
-      const body = {
-        username: process.env.BLUESTUCK_USERNAME,
-        sign: generateSignature(
-          process.env.BLUESTUCK_USERNAME || '',
-          process.env.BLUESTUCK_API_KEY || '',
-          'depo'
-        ),
-      };
-
-      try {
-        const response = await this.httpAgentPost(body, 'api/cek-saldo', '', null);
-        return new ApiResponseDto("success", response.data.data, '0000')
-      } catch (error: any) {
-        return new ApiResponseDto(errorMap[5000], null, '5000')
-      }
     }
-
   }
 
-  async getPaymentTransactionStatus(ref_id: string) {
+  async getPaymentTransactionStatus(ref_id: string, isWeb: boolean, user?: any) {
     const transaction = await this.prisma.externalTransactionHistory.findFirst({
       where: {
         ref_id
@@ -646,7 +650,7 @@ export class ExternalTransactionService {
     data.forEach(async (x) => {
       if (x.status == TransactionStatus.PENDING) {
         try {
-          const statusFetch = await this.getPaymentTransactionStatus(x.ref_id)
+          const statusFetch = await this.getPaymentTransactionStatus(x.ref_id, true)
           updatedIds.push(x.ref_id)
           console.log(statusFetch)
         } catch (e) {
@@ -661,19 +665,90 @@ export class ExternalTransactionService {
 
   async getTxHistoryByBatchId(
     batch_id: string,
-    user: any
+    user: any,
   ) {
+    const where: any = { batch_id };
+
+    if (user.role == Roles.Admin) {
+      where.transaction = { createdBy: user.id };
+    }
+
+    const data = await this.prisma.externalTransactionBatch.findFirst({
+      where,
+      include: {
+        transaction: user.role == Roles.Admin
+          ? {
+            select: {
+              buyer_sku_code: true,
+              customer_no: true,
+              status: true,
+              item_price: true,
+              profit: true,
+              createdAt: true,
+            },
+          }
+          : true, // fallback to full transaction for non-admin
+      },
+    });
+
+    if (!data) {
+      return new ApiResponseDto(errorMap[4004], data, '4004');
+    }
+
+    // Transform only if admin
+    if (user.role == Roles.Admin && data.transaction) {
+      data.transaction = data.transaction.map(({ profit, ...tx }: any) => ({
+        ...tx,
+        item_price: (tx.item_price ?? 0) + (tx.profit ?? 0),
+      }));
+    }
+
+    return new ApiResponseDto('success', data, '0000');
+  }
+
+
+  async getTxHistoryByBatchIdApi(
+    batch_id: string,
+    user: any,
+  ) {
+
+    const findUser = await this.prisma.externalUser.findMany({
+      where: { username: user.username }
+    })
+    const decryptApiKey = decryptSecret(findUser[0].apiKey || '')
+    const validPayload = verifyPayloadAdmin(user.body, user.signature || '', decryptApiKey)
+
+    if (!validPayload) {
+      return new ApiResponseDto(errorMap[4003], null, '4003')
+    }
+
+
     const data = await this.prisma.externalTransactionBatch.findFirst({
       where: {
-        batch_id
+        batch_id,
+        createdBy: findUser[0].id
       }, include: {
-        transaction: true
+        transaction: {
+          select: {
+            buyer_sku_code: true,
+            customer_no: true,
+            status: true,
+            item_price: true,
+            profit: true,
+            createdAt: true
+          }
+        },
       }
     })
 
     if (!data) {
       return new ApiResponseDto(errorMap[4004], data, '4004');
     }
+
+    data.transaction = data.transaction.map(({ profit, ...tx }: any) => ({
+      ...tx,
+      item_price: (tx.item_price ?? 0) + (profit ?? 0),
+    }));;
 
     return new ApiResponseDto('success', data, '0000');
 
@@ -721,8 +796,8 @@ export class ExternalTransactionService {
     if (ref_id !== '') {
       where.transaction.some.ref_id = ref_id;
     }
-    if(user.role == Roles.Admin){
-      where.transaction.createdBy = user.id
+    if (user.role == Roles.Admin) {
+      where.transaction.some.createdBy = user.id;
     }
 
     const data = await this.prisma.externalTransactionBatch.findMany({
@@ -806,6 +881,27 @@ export class ExternalTransactionService {
     };
 
     return new ApiResponseDto('success', paginationData, '0000');
+  }
+
+  async getTransactionDetail(ref_id: string, user: any) {
+    const findUser = await this.prisma.externalUser.findMany({
+      where: { username: user.username }
+    })
+
+    const decryptApiKey = decryptSecret(findUser[0].apiKey || '')
+    const validPayload = verifyPayloadAdmin(user.body, user.signature || '', decryptApiKey)
+
+    if (!validPayload) {
+      return new ApiResponseDto(errorMap[4003], null, '4003')
+    }
+    const transaction = await this.prisma.externalTransactionHistory.findFirst({
+      where: {
+        ref_id,
+        createdBy: findUser[0].id
+      }
+    })
+
+    return new ApiResponseDto('success', transaction, '0000');
   }
 
   async httpAgentPost(requestBody: any, url: string, supplierType: string, formData: any) {

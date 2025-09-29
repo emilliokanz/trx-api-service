@@ -4,6 +4,7 @@ import { Roles } from '@prisma/client';
 import { UserRoles } from 'src/auth/roles.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ApiResponseDto } from 'src/dto/apiResponse.dto';
+import { CurrentUser } from 'src/utils/decorators/currenct-user.decorator';
 
 
 @Controller('/api/v1/auth')
@@ -29,15 +30,25 @@ export class ExternalAuthController {
 
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin, Roles.SuperAdmin])
+    @Post('/admin/api-key')
+    async reqApiKeyAdmin(@CurrentUser() user: any
+    ) {
+        return this.extAuthService.generateApiKey(user);
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])
     @Post('/api-key')
-    async reqApiKey(@Body() payload: any) {
-        return this.extAuthService.generateApiKey(payload.username);
+    async reqApiKey(@Body() payload: any, @CurrentUser() user: any
+    ) {
+        console.log(user)
+        return this.extAuthService.generateApiKey(user, payload.username);
     }
 
     @UseGuards(AuthGuard)
     @UserRoles([Roles.Admin])
     @Post('/generate-referal')
-    async reqReferal(@Body() payload:any, @Req() req: any) {
+    async reqReferal(@Body() payload: any, @Req() req: any) {
         const user = await this.extAuthService.getUserDetail(req.headers.authorization)
         return this.extAuthService.generateReferalCode(user.id, payload.referal_name);
     }
