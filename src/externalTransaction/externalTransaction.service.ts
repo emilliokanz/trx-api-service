@@ -105,7 +105,7 @@ export class ExternalTransactionService {
       })
     }
 
-    return new ApiResponseDto('sucess', batch_id, '0000')
+    return new ApiResponseDto('sucess', {batch_id}, '0000')
   }
 
   async preTransaction(transactionData: ExternalTxRequestDto, usernameHeader?: string, isWeb?: boolean, role?: string, signature?: string, body?: any) {
