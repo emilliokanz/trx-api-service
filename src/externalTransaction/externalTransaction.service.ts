@@ -675,7 +675,7 @@ export class ExternalTransactionService {
       };
     }
 
-    const data = await this.prisma.externalTransactionBatch.findFirst({
+    const data = await this.prisma.externalTransactionBatch.findUniqueOrThrow({
       where,
       include: {
         transaction: user.role == Roles.Admin
@@ -687,6 +687,7 @@ export class ExternalTransactionService {
               item_price: true,
               profit: true,
               createdAt: true,
+              updatedAt: true
             },
           }
           : true, // fallback to full transaction for non-admin
@@ -725,7 +726,7 @@ export class ExternalTransactionService {
     }
 
 
-    const data = await this.prisma.externalTransactionBatch.findFirst({
+    const data = await this.prisma.externalTransactionBatch.findUniqueOrThrow({
       where: {
         batch_id,
         createdBy: findUser[0].id
@@ -737,7 +738,8 @@ export class ExternalTransactionService {
             status: true,
             item_price: true,
             profit: true,
-            createdAt: true
+            createdAt: true,
+            updatedAt: true
           }
         },
       }
