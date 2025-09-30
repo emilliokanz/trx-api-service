@@ -45,6 +45,7 @@ export class ExternalTopupController {
   @Post('create-topup')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async createTopupRequest(@Body() payload: CreateTopupRequestDto, @Req() req: any) {
+    console.log(req.headers['x-sign'])
     if (!req.headers['x-sign']) {
       return new ApiResponseDto(errorMap[4011], null, '4011');
     }
@@ -52,7 +53,7 @@ export class ExternalTopupController {
     const verify = verifyPayload(payload, req.headers['x-sign'])
 
     if (!verify) {
-      return new ApiResponseDto(errorMap[4011], null, '4011');
+      return new ApiResponseDto(errorMap[4012], null, '4012');
     }
     const user = await this.extAuthService.getUserDetail(req.headers.authorization)
 
@@ -64,14 +65,14 @@ export class ExternalTopupController {
   @Post('update-topup')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async updateTopupRequest(@Body() payload: any, @Req() req: any) {
-    if (!req.headers['x-sign'] || req.headers['x-sign'] == undefined) {
+    if (!req.headers['x-sign']) {
       return new ApiResponseDto(errorMap[4011], null, '4011');
     }
 
     const verify = verifyPayload(payload, req.headers['x-sign'])
 
     if (!verify) {
-      return new ApiResponseDto(errorMap[4011], null, '4011');
+      return new ApiResponseDto(errorMap[4012], null, '4012');
     }
     const user = await this.extAuthService.getUserDetail(req.headers.authorization)
 

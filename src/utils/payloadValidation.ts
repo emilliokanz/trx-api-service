@@ -55,7 +55,6 @@ export function verifyPayloadAdmin(body: any, signature: string, apiKey: string)
 
 export function signPayload(body: any) {
   const secret = process.env.PAYLOAD_SECRET || ''
-
   const bodyString = JSON.stringify(body);
   return crypto
     .createHmac("sha256", secret)
