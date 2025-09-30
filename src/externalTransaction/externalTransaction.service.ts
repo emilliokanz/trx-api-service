@@ -671,6 +671,7 @@ export class ExternalTransactionService {
 
     if (user.role == Roles.Admin) {
       where = {
+          ...where,
           createdBy: user.id 
       };
     }
