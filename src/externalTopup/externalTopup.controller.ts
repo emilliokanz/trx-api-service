@@ -43,9 +43,7 @@ export class ExternalTopupController {
   @UseGuards(AuthGuard)
   @UserRoles([Roles.Admin])
   @Post('create-topup')
-  @UsePipes(new ValidationPipe({ whitelist: true }))
   async createTopupRequest(@Body() payload: CreateTopupRequestDto, @Req() req: any) {
-    console.log(req.headers['x-sign'])
     if (!req.headers['x-sign']) {
       return new ApiResponseDto(errorMap[4011], null, '4011');
     }
@@ -63,7 +61,6 @@ export class ExternalTopupController {
   @UseGuards(AuthGuard)
   @UserRoles([Roles.SuperAdmin])
   @Post('update-topup')
-  @UsePipes(new ValidationPipe({ whitelist: true }))
   async updateTopupRequest(@Body() payload: any, @Req() req: any) {
     if (!req.headers['x-sign']) {
       return new ApiResponseDto(errorMap[4011], null, '4011');

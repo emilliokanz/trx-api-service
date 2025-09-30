@@ -4,7 +4,7 @@ import { ExternalTxRequestDto } from "./dto/extTxRequest.dto";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
 import { Validate } from "class-validator";
-import { decryptSecret, signPayloadAdmin, validateDto, verifyPayload } from "src/utils/payloadValidation";
+import { decryptSecret, signPayload, signPayloadAdmin, validateDto, verifyPayload } from "src/utils/payloadValidation";
 import { AuthGuard } from "src/auth/auth.guard";
 import { UserRoles } from "src/auth/roles.decorator";
 import { Roles } from "@prisma/client";
@@ -35,7 +35,7 @@ export class ExternalTransactionController {
         const verify = verifyPayload(payload, req.headers['x-sign'])
 
         if (!verify) {
-            return new ApiResponseDto(errorMap[4011], null, '4011');
+            return new ApiResponseDto(errorMap[4012], null, '4012');
         }
 
         const user = await this.authService.getUserDetail(req.headers.authorization)
@@ -160,5 +160,12 @@ export class ExternalTransactionController {
 
 
         return signPayloadAdmin(payload, decryptApiKey)
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
+    @Post('/sign-sup')
+    async signPayloadSup(@Body() payload: any, @Req() req: any) {
+        return signPayload(payload)
     }
 }

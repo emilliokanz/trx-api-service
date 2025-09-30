@@ -30,6 +30,9 @@ export async function validateDto<T>(
 export function verifyPayload(body: any, signature: string): boolean {
   const expectedSig = signPayload(body);
 
+  console.log(signature)
+  console.log(expectedSig)
+
   const sigBuf = Buffer.from(signature || '', 'hex');
   const expectedBuf = Buffer.from(expectedSig, 'hex');
 
