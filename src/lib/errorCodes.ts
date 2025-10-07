@@ -6,6 +6,7 @@ export const errorMap = {
     1004: 'user not found',
     1005: 'wrong referal code',
     1006: 'user already assigned to admin',
+    1007: 'failed getting DIGIFLAZZ balance',
     2000: 'product not found',
     2001: 'product price same or less than supplier price',
     2002: 'product price is lower than actual price',

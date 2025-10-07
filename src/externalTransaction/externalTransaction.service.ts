@@ -105,166 +105,107 @@ export class ExternalTransactionService {
       })
     }
 
-    return new ApiResponseDto('sucess', {batch_id}, '0000')
+    return new ApiResponseDto('sucess', { batch_id }, '0000')
   }
 
-  async preTransaction(transactionData: ExternalTxRequestDto, usernameHeader?: string, isWeb?: boolean, role?: string, signature?: string, body?: any) {
-    const { code, customer_no, username } = transactionData
+  async preTransaction(
+    transactionData: ExternalTxRequestDto,
+    usernameHeader?: string,
+    isWeb?: boolean,
+    role?: string,
+    signature?: string,
+    body?: any
+  ) {
+    const { code, customer_no, username } = transactionData;
 
-    const extProduct = await this.prisma.externalProduct.findFirst({
-      where: {
-        item_id: code
-      }, include: {
-        products: {
-          include: {
-            product: true
-          }
-        }
-      }
-    })
+    // Run all validation checks first
+    const validationResult = await this.validatePreTransaction(
+      transactionData,
+      usernameHeader,
+      isWeb,
+      role,
+      signature,
+      body
+    );
 
-    const type = extProduct?.products[0].product.type
-
-    if (!extProduct) {
-      return new ApiResponseDto(errorMap[2000], null, '2000')
+    if (validationResult instanceof ApiResponseDto) {
+      return validationResult;
     }
 
-    if (type !== "APIBOSS") {
-      await this.getProductList()
-    }
-
-    if (!isWeb && !usernameHeader) {
-      return new ApiResponseDto(errorMap[4002], null, '4002')
-    }
-
-    if (!code) {
-      return new ApiResponseDto(errorMap[4000] + 'code', null, '4000')
-    }
-
-    if (customer_no.length == 0) {
-      return new ApiResponseDto(errorMap[4000] + 'customer_no', null, '4000')
-    }
-
-    const findUser = await this.prisma.externalUser.findMany({
-      where: {
-        username: username || usernameHeader
-      }
-    });
-
-    if (findUser.length == 0) {
-      return new ApiResponseDto(errorMap[1004], null, '1004')
-    }
-
-    if (!isWeb) {
-      const decryptApiKey = decryptSecret(findUser[0].apiKey || '')
-      const validPayload = verifyPayloadAdmin(body, signature || '', decryptApiKey)
-
-      if (!validPayload) {
-        return new ApiResponseDto(errorMap[4003], null, '4003')
-      }
-    }
+    const { extProduct, type, findUser } = validationResult;
 
     const junctionProduct = await this.prisma.extProductToSupplierJunction.findMany({
-      where: {
-        item_id: code
-      }, include: {
-        product: true
-      }
-    })
+      where: { item_id: code },
+      include: { product: true }
+    });
 
-    if (junctionProduct.length == 0) {
-      return new ApiResponseDto(errorMap[2000], null, '2000')
+    if (junctionProduct.length === 0) {
+      return new ApiResponseDto(errorMap[2000], null, '2000');
     }
 
-    let cost = 0
-
+    let cost = 0;
     junctionProduct.forEach((x) => {
-      const price = x.product.price * x.qty
-      cost = cost + price
-    })
+      cost += x.product.price * x.qty;
+    });
+    const totalCost = cost * customer_no.length;
 
-    const totalCost = cost * customer_no.length
-
-    const superAdminBalance = await this.getAdminBalanceFn(true, type || "")
-
+    const superAdminBalance = await this.getAdminBalanceFn(true, type || "");
     if (totalCost > superAdminBalance?.data.deposit) {
-      console.log("[BALANCE] Super Admin balance to low")
-      return new ApiResponseDto(errorMap[1002], null, '1002')
+      console.log("[BALANCE] Super Admin balance too low");
+      return new ApiResponseDto(errorMap[1002], null, '1002');
     }
 
-    if (role == Roles.Admin || role == Roles.Customer) {
-
+    if (role === Roles.Admin || role === Roles.Customer) {
       if (!extProduct.admin_price) {
-        return new ApiResponseDto(errorMap[2004], null, '2004')
+        return new ApiResponseDto(errorMap[2004], null, '2004');
       }
 
-      const adminTotalCost = extProduct.admin_price * customer_no.length
+      const adminTotalCost = extProduct.admin_price * customer_no.length;
+      const currentUser = await this.prisma.externalUser.findFirst({
+        where: { username }
+      });
 
-      const findUser = await this.prisma.externalUser.findFirst({
-        where: {
-          username
-        }
-      })
-
-      if (!findUser) {
-        return new ApiResponseDto(errorMap[1004], null, '1004')
+      if (!currentUser) {
+        return new ApiResponseDto(errorMap[1004], null, '1004');
       }
 
-      if (adminTotalCost > findUser?.balance) {
-        console.log("[BALANCE]Admin balance to low")
-        return new ApiResponseDto(errorMap[1002], null, '1002')
+      if (adminTotalCost > currentUser.balance) {
+        console.log("[BALANCE] Admin balance too low");
+        return new ApiResponseDto(errorMap[1002], null, '1002');
       }
 
       await this.prisma.externalUser.update({
-        where: {
-          id: findUser.id
-        },
-        data: {
-          balance: {
-            decrement: adminTotalCost
-          }
-        }
-      })
+        where: { id: currentUser.id },
+        data: { balance: { decrement: adminTotalCost } }
+      });
     }
 
-    const txDetails: PreTxDetailDto[] = []
+    const txDetails: PreTxDetailDto[] = [];
 
-    customer_no.forEach((x) => {
+    customer_no.forEach((custNo) => {
       junctionProduct.forEach((product) => {
-        if (product.qty > 1) {
-          const profit = (extProduct.price - (product.product.price * product.qty)) / product.qty
-          for (let i = 0; i < product.qty; i++) {
-            const ref_id = generateReferenceId()
-            txDetails.push({
-              ref_id,
-              customer_no: x,
-              code: product.product.code,
-              profit,
-              supplierType: product.product.type,
-              productDetail: extProduct,
-              role: role || "",
-              user_id: findUser[0].id || null
-            })
-          }
-        } else {
-          const profit = extProduct.price - product.product.price
-          const ref_id = generateReferenceId()
+        const ref_id = generateReferenceId();
+        const profit =
+          product.qty > 1
+            ? (extProduct.price - product.product.price * product.qty) / product.qty
+            : extProduct.price - product.product.price;
+
+        for (let i = 0; i < product.qty; i++) {
           txDetails.push({
             ref_id,
-            customer_no: x,
+            customer_no: custNo,
             code: product.product.code,
             profit,
             supplierType: product.product.type,
             productDetail: extProduct,
             role: role || "",
             user_id: findUser[0].id || null
-          })
+          });
         }
-      })
-    })
+      });
+    });
 
-
-    return txDetails
+    return txDetails;
   }
 
   async processTransaction(
@@ -278,197 +219,197 @@ export class ExternalTransactionService {
     role: string,
     userId: number
   ) {
-    let response: any = {};
+    const payload = {
+      customer_no,
+      code,
+      ref_id,
+      profit,
+      productDetail,
+      role,
+      userId
+    }
+    switch (supplierType) {
+      case 'APIBOSS':
+        return this.processApibossTransaction(payload);
+      case 'DIGIFLAZZ':
+        return this.processDigiflazzTransaction(payload);
+      // case 'VOUCHERIN':
+      //   return this.processVoucherinTransaction(...);
 
-    // APIBOSS TX
-    if (supplierType == "APIBOSS") {
-      const sign = generateSignature(
-        process.env.APIBOSS_USERNAME || '',
-        process.env.APIBOSS_APIKEY || '',
-        ref_id
-      )
-
-      const body = {
-        username: process.env.APIBOSS_USERNAME,
-        sku_code: code,
-        userid: customer_no,
-        ref_id,
-        sign
-      };
-
-      const form = new FormData();
-      form.append('username', process.env.APIBOSS_USERNAME || '');
-      form.append('sku_code', code);
-      form.append('userid', customer_no);
-      form.append('ref_id', ref_id);
-      form.append('sign', sign);
-
-      if (process.env.NODE_ENV !== "dev") {
-        try {
-          response = await this.httpAgentPost(body, '', 'APIBOSS', form);
-
-          const transaction = response.data?.data;
-
-          if (!transaction) {
-            console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} mark as Failed`)
-            await this.prisma.externalTransactionHistory.update({
-              where: {
-                ref_id
-              },
-              data: {
-                status: TransactionStatus.FAILED,
-                profit,
-                sign,
-                username: process.env.APIBOSS_USERNAME || '',
-              }
-            });
-            return
-          }
-
-          const price = Number(transaction?.price) ?? 0
-          let status = transaction?.status ?? TransactionStatus.FAILED
-
-          if (status == 0 || status == '0' || status == 'Sukses' || status == 'Successful') {
-            status = TransactionStatus.SUCCESS
-
-            try {
-              await this.owner.divideOwnerProfit(profit || 0, 'EXT');
-            } catch (e: any) {
-              console.error('[PROFIT] Failed dividing profit')
-            }
-
-          } else {
-            status = TransactionStatus.FAILED
-          }
-
-          const balance = Number(transaction?.balance) ?? 0
-
-          await this.prisma.externalTransactionHistory.update({
-            where: {
-              ref_id
-            },
-            data: {
-              status: status,
-              item_price: price,
-              profit,
-              sign,
-              username: process.env.APIBOSS_USERNAME || ''
-            }
-          });
-
-
-          if (balance !== 0) {
-            await this.prisma.supplierBalances.update({
-              where: {
-                name: supplierType
-              }, data: {
-                balance: +transaction.balance
-              }
-            })
-          } else {
-            console.error('[APIBOSS] Balance not updated, failed to receive API response')
-          }
-
-        } catch (error: any) {
-          console.log(error, "[APIBOSS] error")
-          await this.prisma.externalTransactionHistory.update({
-            where: {
-              ref_id
-            },
-            data: {
-              status: TransactionStatus.FAILED,
-              profit,
-              sign,
-              username: process.env.APIBOSS_USERNAME || ''
-            }
-          });
-
-          if (role && (role == Roles.Admin || role == Roles.Customer)) {
-            const update = await this.prisma.externalUser.update({
-              where: {
-                id: userId
-              }, data: {
-                balance: {
-                  increment: productDetail.admin_price || 0
-                }
-              }
-            })
-
-            console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} returning Admin/Customer balance ${update.balance}`)
-          }
-
-
-          console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} mark as Failed`)
-          console.log(error.response?.data);
-        }
-      } else {
-        await this.prisma.externalTransactionHistory.update({
-          where: {
-            ref_id
-          },
-          data: {
-            status: TransactionStatus.FAILED,
-            profit,
-            sign,
-            username: process.env.APIBOSS_USERNAME || ''
-          }
-        });
-        if (role && (role == Roles.Admin || role == Roles.Customer)) {
-          const update = await this.prisma.externalUser.update({
-            where: {
-              id: userId
-            }, data: {
-              balance: {
-                increment: productDetail.admin_price || 0
-              }
-            }
-          })
-
-          console.error(`[APIBOSS] Failed getting response, transaction ref_id: ${ref_id} returning Admin/Customer balance ${update.balance}`)
-        }
-      }
+      default:
+        console.error(`[SUPPLIER] Unknown supplier type: ${supplierType}`);
+        return null;
     }
   }
 
-  async getProductList() {
-    const body = {
-      command: 'prepaid',
-      username: process.env.BLUESTUCK_USERNAME,
-      sign: generateSignature(
-        process.env.BLUESTUCK_USERNAME || '',
-        process.env.BLUESTUCK_API_KEY || '',
-        'pricelist'
-      ),
+  private async processApibossTransaction(args: {
+    customer_no: string;
+    code: string;
+    ref_id: string;
+    profit: number;
+    productDetail: ExternalProduct;
+    role: string;
+    userId: number;
+  }) {
+    const config: ExternalProviderConfig = {
+      providerName: "APIBOSS",
+      apiUrl: "",
+      usernameEnvKey: "APIBOSS_USERNAME",
+      apiKeyEnvKey: "APIBOSS_APIKEY",
+      successStatuses: [0, '0', 'Sukses', 'Successful']
+    };
+    await this.processExternalTransaction(config, args);
+  }
+
+  private async processDigiflazzTransaction(args: {
+    customer_no: string;
+    code: string;
+    ref_id: string;
+    profit: number;
+    productDetail: ExternalProduct;
+    role: string;
+    userId: number;
+  }) {
+
+    const config: ExternalProviderConfig = {
+      providerName: "DIGIFLAZZ",
+      apiUrl: "https://api.digiflazz.com/v1/transaction",
+      usernameEnvKey: "DIGI_USERNAME",
+      apiKeyEnvKey: "DIGI_API_KEY",
+      successStatuses: [0, '0', 'Sukses', 'Successful', 'Success']
+    };
+    await this.processExternalTransaction(config, args);
+  }
+
+  private async processExternalTransaction(
+    providerConfig: ExternalProviderConfig,
+    {
+      customer_no,
+      code,
+      ref_id,
+      profit,
+      productDetail,
+      role,
+      userId
+    }: {
+      customer_no: string;
+      code: string;
+      ref_id: string;
+      profit: number;
+      productDetail: ExternalProduct;
+      role: string;
+      userId: number;
+    }
+  ) {
+    const username = process.env[providerConfig.usernameEnvKey] || '';
+    const apiKey = process.env[providerConfig.apiKeyEnvKey] || '';
+    const sign = generateSignature(username, apiKey, ref_id);
+
+    const requestBody: Record<string, any> = {
+      username,
+      ref_id,
+      sign
     };
 
+    // provider-specific field naming
+    if (providerConfig.providerName === "APIBOSS") {
+      requestBody["sku_code"] = code;
+      requestBody["userid"] = customer_no;
+    } else if (providerConfig.providerName === "DIGIFLAZZ") {
+      requestBody["buyer_sku_code"] = code;
+      requestBody["customer_no"] = customer_no;
+    }
+
+    // Dev mode: simulate failure
+    if (process.env.NODE_ENV === "a") {
+      await this.prisma.externalTransactionHistory.update({
+        where: { ref_id },
+        data: {
+          status: TransactionStatus.FAILED,
+          profit,
+          sign,
+          username
+        }
+      });
+      if (role === Roles.Admin || role === Roles.Customer) {
+        await this.prisma.externalUser.update({
+          where: { id: userId },
+          data: { balance: { increment: productDetail.admin_price || 0 } }
+        });
+      }
+      console.error(`[${providerConfig.providerName}][DEV] Simulated failure, ref_id: ${ref_id}`);
+      return;
+    }
+
+    // Production mode
     try {
-      // const response = await this.httpAgentPost(body, 'api/price-list');
+      const response = await this.httpAgentPost(
+        requestBody,
+        providerConfig.apiUrl ?? "",
+        providerConfig.providerName,
+        providerConfig.providerName === "APIBOSS" ? new FormData(requestBody) : null
+      );
 
-      // const products = response.data?.data;
+      const transaction = response.data?.data;
+      if (!transaction) {
+        throw new Error("No transaction data in response");
+      }
 
-      // if (!Array.isArray(products) || products.length === 0) {
-      //   console.warn('No products found in response.');
-      //   return [];
-      // }
+      const price = Number(transaction.price) || 0;
+      const balance = Number(transaction.balance) || 0;
+      let statusRaw: any = transaction.status;
 
-      // const mapProduct = await productToDbMapper(products)
+      const successValues = providerConfig.successStatuses;
+      const status = successValues.includes(statusRaw)
+        ? TransactionStatus.SUCCESS
+        : TransactionStatus.FAILED;
 
-      // await Promise.all(
-      //   mapProduct.map((product) =>
-      //     this.prisma.externalSupplierProduct.upsert({
-      //       where: { code: product.code },
-      //       update: { ...product }, // update all fields or select which ones
-      //       create: { ...product },
-      //     })
-      //   )
-      // );
+      if (status === TransactionStatus.SUCCESS) {
+        try {
+          await this.owner.divideOwnerProfit(profit || 0, 'EXT');
+        } catch {
+          console.error(`[${providerConfig.providerName}][PROFIT] Failed dividing profit`);
+        }
+      }
 
-      const dbProduct = await this.prisma.externalSupplierProduct.findMany()
+      await this.prisma.externalTransactionHistory.update({
+        where: { ref_id },
+        data: {
+          status,
+          item_price: price,
+          profit,
+          sign,
+          username
+        }
+      });
 
-      return new ApiResponseDto("success", dbProduct, '0000')
-    } catch (e: any) {
-      console.error('Error during product list fetch or insert:', e?.response?.data || e.message || e);
-      return []; // return something to avoid undefined
+      if (balance !== 0) {
+        await this.prisma.supplierBalances.update({
+          where: { name: providerConfig.providerName },
+          data: { balance }
+        });
+      } else {
+        console.error(`[${providerConfig.providerName}] Balance not updated (zero)`);
+      }
+    } catch (err: any) {
+      console.error(`[${providerConfig.providerName}] Transaction error, ref_id: ${ref_id}`, err.response?.data ?? err);
+      // On failure path: refund / update as failed
+      await this.prisma.externalTransactionHistory.update({
+        where: { ref_id },
+        data: {
+          status: TransactionStatus.FAILED,
+          profit,
+          sign,
+          username
+        }
+      });
+      if (role === Roles.Admin || role === Roles.Customer) {
+        await this.prisma.externalUser.update({
+          where: { id: userId },
+          data: { balance: { increment: productDetail.admin_price || 0 } }
+        });
+        console.error(`[${providerConfig.providerName}] Refund balance for ref_id: ${ref_id}`);
+      }
     }
   }
 
@@ -509,7 +450,7 @@ export class ExternalTransactionService {
       return new ApiResponseDto("success", { deposit: findUser.balance }, '0000')
     }
 
-    if (type == "APIBOSS" || type == null) {
+    if (type == "APIBOSS") {
 
       let balance = 0;
       let response: any = {};
@@ -550,6 +491,30 @@ export class ExternalTransactionService {
 
 
       return new ApiResponseDto("success", { deposit: balance }, '0000')
+    }
+
+    if (type == "DIGIFLAZZ") {
+      const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', 'depo');
+      const requestBody = {
+        cmd: 'deposit',
+        username: process.env.DIGI_USERNAME ?? '',
+        sign,
+      };
+
+      try {
+        const response = await this.httpAgentPost(
+          requestBody,
+          'https://api.digiflazz.com/v1/cek-saldo',
+          "DIGIFLAZZ",
+          null
+        );
+
+        return new ApiResponseDto("success", { deposit: response.data }, '0000')
+      } catch (e: any) {
+        console.log(e, "errors")
+        throw new ApiResponseDto(errorMap[1007], null, "1007")
+      }
+
     }
   }
 
@@ -671,8 +636,8 @@ export class ExternalTransactionService {
 
     if (user.role == Roles.Admin) {
       where = {
-          ...where,
-          createdBy: user.id 
+        ...where,
+        createdBy: user.id
       };
     }
 
@@ -926,7 +891,20 @@ export class ExternalTransactionService {
       this.logger.debug(`[EXTERNAL TRANSACTION] API RESPONSE ${supplierType}`, response.data.data)
 
       return response
-    } else {
+    }
+    if (supplierType == "DIGIFLAZZ") {
+      const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
+
+      const response = await axios.post(url, requestBody, {
+        httpsAgent: agent,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      return response;
+    }
+    else {
       const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
 
       const response = await axios.post(process.env.BLUESTUCK_URL + url, requestBody, {
@@ -939,4 +917,237 @@ export class ExternalTransactionService {
       return response;
     }
   }
+
+  private async validatePreTransaction(
+    transactionData: ExternalTxRequestDto,
+    usernameHeader?: string,
+    isWeb?: boolean,
+    role?: string,
+    signature?: string,
+    body?: any
+  ): Promise<{ extProduct: any; type: string; findUser: any[] } | ApiResponseDto> {
+    const { code, customer_no, username } = transactionData;
+
+    // 1. Check required fields
+    if (!code) {
+      return new ApiResponseDto(errorMap[4000] + 'code', null, '4000');
+    }
+
+    if (!customer_no || customer_no.length === 0) {
+      return new ApiResponseDto(errorMap[4000] + 'customer_no', null, '4000');
+    }
+
+    if (!isWeb && !usernameHeader) {
+      return new ApiResponseDto(errorMap[4002], null, '4002');
+    }
+
+    // 2. Get external product
+    const extProduct = await this.prisma.externalProduct.findFirst({
+      where: { item_id: code },
+      include: {
+        products: { include: { product: true } }
+      }
+    });
+
+    if (!extProduct) {
+      return new ApiResponseDto(errorMap[2000], null, '2000');
+    }
+
+    const type = extProduct.products[0].product.type;
+
+    // 3. Find user
+    const findUser = await this.prisma.externalUser.findMany({
+      where: { username: username || usernameHeader }
+    });
+
+    if (findUser.length === 0) {
+      return new ApiResponseDto(errorMap[1004], null, '1004');
+    }
+
+    // 4. Validate API key signature if not from web
+    if (!isWeb) {
+      const decryptApiKey = decryptSecret(findUser[0].apiKey || '');
+      const validPayload = verifyPayloadAdmin(body, signature || '', decryptApiKey);
+      if (!validPayload) {
+        return new ApiResponseDto(errorMap[4003], null, '4003');
+      }
+    }
+
+    return { extProduct, type, findUser };
+  }
 }
+
+
+// private async processApibossTransaction({
+//     customer_no,
+//     code,
+//     ref_id,
+//     profit,
+//     productDetail,
+//     role,
+//     userId
+//   }: {
+//     customer_no: string;
+//     code: string;
+//     ref_id: string;
+//     profit: number;
+//     productDetail: ExternalProduct;
+//     role: string;
+//     userId: number;
+//   }) {
+//     const username = process.env.APIBOSS_USERNAME || '';
+//     const apiKey = process.env.APIBOSS_APIKEY || '';
+//     const sign = generateSignature(username, apiKey, ref_id);
+
+//     const body = {
+//       username,
+//       sku_code: code,
+//       userid: customer_no,
+//       ref_id,
+//       sign
+//     };
+
+//     const form = new FormData();
+//     form.append('username', username);
+//     form.append('sku_code', code);
+//     form.append('userid', customer_no);
+//     form.append('ref_id', ref_id);
+//     form.append('sign', sign);
+
+//     if (process.env.NODE_ENV === "dev") {
+//       // Dev mode: auto-fail without API call
+//       await this.prisma.externalTransactionHistory.update({
+//         where: { ref_id },
+//         data: {
+//           status: TransactionStatus.FAILED,
+//           profit,
+//           sign,
+//           username
+//         }
+//       });
+
+//       if (role === Roles.Admin || role === Roles.Customer) {
+//         const update = await this.prisma.externalUser.update({
+//           where: { id: userId },
+//           data: { balance: { increment: productDetail.admin_price || 0 } }
+//         });
+
+//         console.error(`[APIBOSS][DEV] Ref ${ref_id} - Returned Admin/Customer balance ${update.balance}`);
+//       }
+//       return;
+//     }
+
+//     // Production mode
+//     try {
+//       const response = await this.httpAgentPost(body, '', 'APIBOSS', form);
+//       const transaction = response.data?.data;
+
+//       if (!transaction) {
+//         await this.handleApibossFailure(ref_id, profit, sign, username, role, userId, productDetail);
+//         console.error(`[APIBOSS] No transaction data received, ref_id: ${ref_id}`);
+//         return;
+//       }
+
+//       // Parse transaction result
+//       const price = Number(transaction.price) || 0;
+//       const balance = Number(transaction.balance) || 0;
+//       let status = transaction.status;
+
+//       // Normalize status
+//       const successValues = [0, '0', 'Sukses', 'Successful'];
+//       status = successValues.includes(status) ? TransactionStatus.SUCCESS : TransactionStatus.FAILED;
+
+//       if (status === TransactionStatus.SUCCESS) {
+//         try {
+//           await this.owner.divideOwnerProfit(profit || 0, 'EXT');
+//         } catch {
+//           console.error('[PROFIT] Failed dividing profit');
+//         }
+//       }
+
+//       // Update transaction history
+//       await this.prisma.externalTransactionHistory.update({
+//         where: { ref_id },
+//         data: {
+//           status,
+//           item_price: price,
+//           profit,
+//           sign,
+//           username
+//         }
+//       });
+
+//       // Update supplier balance if available
+//       if (balance !== 0) {
+//         await this.prisma.supplierBalances.update({
+//           where: { name: 'APIBOSS' },
+//           data: { balance }
+//         });
+//       } else {
+//         console.error('[APIBOSS] Balance not updated, missing API response');
+//       }
+//     } catch (error: any) {
+//       console.log(error, "[APIBOSS] error");
+//       await this.handleApibossFailure(ref_id, profit, sign, username, role, userId, productDetail);
+//       console.error(`[APIBOSS] Failed transaction, ref_id: ${ref_id}`);
+//       console.log(error.response?.data);
+//     }
+//   }
+
+
+
+// private async processDigiflazzTransaction({
+//   customer_no,
+//   code,
+//   ref_id,
+//   profit,
+//   productDetail,
+//   role,
+//   userId
+// }: {
+//   customer_no: string;
+//   code: string;
+//   ref_id: string;
+//   profit: number;
+//   productDetail: ExternalProduct;
+//   role: string;
+//   userId: number;
+// }) {
+//   try {
+//     const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', ref_id);
+
+//     const requestBody = {
+//       username: process.env.DIGI_USERNAME ?? '',
+//       buyer_sku_code: code,
+//       customer_no: customer_no,
+//       ref_id: ref_id,
+//       sign: sign,
+//     };
+
+//     if (process.env.NODE_ENV !== "dev") {
+//       const response = await this.httpAgentPost(
+//         requestBody,
+//         "https://api.digiflazz.com/v1/transaction",
+//         "DIGIFLAZZ",
+//         null
+//       );
+
+//       console.log('Success Digiflazz Request Transaction', response.data);
+//     }
+
+//     await this.prisma.externalTransactionHistory.create({
+//       data: {
+//         ...requestBody,
+//         profit: 0,
+//         customer_id: null,
+//         createdBy: null,
+//         item_price: 0,
+//         customer_username: '',
+//         source: 'ITEMKU',
+//         order_id
+//       },
+//     });
+//   } catch (e: any) {
+
+//   }
+// }
