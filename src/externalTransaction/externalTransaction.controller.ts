@@ -66,7 +66,7 @@ export class ExternalTransactionController {
     @Post('/status')
     @HttpCode(200)
     async getPaymentTxStatus(@Body() payload: { ref_id: string }) {
-        return await this.extTrxService.getPaymentTransactionStatus(payload.ref_id, true)
+        return await this.extTrxService.getPaymentTransactionStatus(payload.ref_id)
     }
 
     @UseGuards(AuthGuard)

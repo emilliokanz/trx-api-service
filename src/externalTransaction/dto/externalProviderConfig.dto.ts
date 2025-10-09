@@ -4,4 +4,6 @@ interface ExternalProviderConfig {
   usernameEnvKey: string;          // env var key for username
   apiKeyEnvKey: string;             // env var key for api key
   successStatuses: (string | number)[];  // values meaning “success”
+  pendingStatuses: (string | number)[];  // values meaning “pending”
+
 }
