@@ -4,12 +4,15 @@ import { CreateExtProduct } from "./dto/createProduct.dto";
 import { extProductToDb, extProductToDbOne } from "./mapper/extProductToDb";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
-import { ExternalUser, Prisma, Roles } from "@prisma/client";
+import { ExternalUser, Prisma, ProductPrice, Roles } from "@prisma/client";
 import PaginationIface from "src/interface/paginationIface";
 import { ExternalAuthService } from "src/externalAuth/externalAuth.service";
 import { CreateExtProductCustomer } from "./dto/createProductCustomer.dto";
 import { productToDbMapper } from "src/externalTransaction/mapper/productToDbMapper";
 import { CreateSupplierProduct } from "./dto/createSupplierProduct.dto";
+import generateSignature from "src/utils/generateSignature";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import axios from "axios";
 
 @Injectable()
 export class ExternalProductService {
@@ -73,7 +76,7 @@ export class ExternalProductService {
 
     async createSupplierProductFn(payload: CreateSupplierProduct[]) {
         const mapProduct = await productToDbMapper(payload);
-    
+
         const results = await Promise.all(
             mapProduct.map(async (product) => {
                 try {
@@ -82,7 +85,7 @@ export class ExternalProductService {
                         update: { ...product },
                         create: { ...product },
                     });
-    
+
                     console.log(`Upserted product with code: ${product.code}`);
                     return result;
                 } catch (error) {
@@ -91,10 +94,10 @@ export class ExternalProductService {
                 }
             })
         );
-    
+
         return new ApiResponseDto("success", results, "0000");
     }
-    
+
 
     async updateProduct(payload: CreateExtProduct) {
         const product = await this.prisma.externalProduct.findFirst({
@@ -396,4 +399,77 @@ export class ExternalProductService {
     async productPriceValidation(pPrice: number, sPrice: number, qty: number) {
         return pPrice > (sPrice * qty)
     }
+
+    private async updateProductDigiflazz(productData: ProductPrice[]) {
+        productData.forEach(async (p) => {
+            await this.prisma.externalSupplierProduct.upsert({
+                create: {
+                    brand: p.brand,
+                    code: p.buyer_sku_code,
+                    category: p.category,
+                    price: p.price,
+                    name: p.product_name,
+                    type: "DIGIFLAZZ",
+                    status: true,
+                    unlimited_stock: true,
+                    stock: 100,
+                    multi: true,
+                    start_cut_off: '00:00',
+                    end_cut_off:  '00:00',
+                    desc: "",
+                    actualPrice: null,
+                },
+                update: {
+                    brand: p.brand,
+                    code: p.buyer_sku_code,
+                    category: p.category,
+                    price: p.price,
+                    name: p.product_name
+                },
+                where: {
+                    code: p.buyer_sku_code
+                }
+            })
+        })
+    }
+
+    async getDigiflazzPrice() {
+        const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', 'pricelist');
+
+        const requestBody = {
+            cmd: 'prepaid',
+            username: process.env.DIGI_USERNAME ?? '',
+            sign: sign,
+            category: 'GAMES',
+            brand: 'MOBILE LEGEND',
+        };
+
+        try {
+            const response = await httpAgentPost(
+                requestBody,
+                'https://api.digiflazz.com/v1/price-list',
+            );
+
+            // update product list 
+            await this.updateProductDigiflazz(response.data.data)
+
+            return response.data.data
+
+        } catch (e: any) {
+            console.log(`error getting digiflazz price: ${e.message}`)
+        }
+    }
+}
+
+async function httpAgentPost(requestBody: any, url: string) {
+    const agent = new HttpsProxyAgent(process.env.DIGI_PROXY_URL ?? '');
+
+    const response = await axios.post(url, requestBody, {
+        httpsAgent: agent,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    return response;
 }

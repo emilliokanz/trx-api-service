@@ -93,4 +93,10 @@ export class ExternalProductController {
         return await this.extProductService.updateAdminCustProduct(payload, user.id)
     }
 
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin])
+    @Post('/get-product')
+    async updateDigi() {
+        return await this.extProductService.getDigiflazzPrice()
+    }
 }

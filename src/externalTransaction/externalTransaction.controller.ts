@@ -17,14 +17,6 @@ export class ExternalTransactionController {
     constructor(private extTrxService: ExternalTransactionService, private authService: AuthService, private prisma: PrismaService) { }
 
     @UseGuards(AuthGuard)
-    @UserRoles([Roles.Admin, Roles.SuperAdmin])
-    @Post('/get-product')
-    @HttpCode(200)
-    async getProductList() {
-        return await this.extTrxService.getProductList()
-    }
-
-    @UseGuards(AuthGuard)
     @Post('/request-web')
     @HttpCode(200)
     async requestTransactionWeb(@Body() payload: ExternalTxRequestDto, @Req() req: any) {
@@ -74,7 +66,7 @@ export class ExternalTransactionController {
     @Post('/status')
     @HttpCode(200)
     async getPaymentTxStatus(@Body() payload: { ref_id: string }) {
-        return await this.extTrxService.getPaymentTransactionStatus(payload.ref_id, true)
+        return await this.extTrxService.getPaymentTransactionStatus(payload.ref_id)
     }
 
     @UseGuards(AuthGuard)
