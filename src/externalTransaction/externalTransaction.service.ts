@@ -597,7 +597,7 @@ export class ExternalTransactionService {
 
     const response = await this.httpAgentPost(
       requestBody,
-      'api/transaction',
+      'https://api.digiflazz.com/v1/transaction',
       supProduct.type,
       null
     );
