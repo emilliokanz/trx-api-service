@@ -5,4 +5,10 @@ export class GetTransaction extends Pagination {
     dateStart: string
     dateEnd: string
     status: string
+    deliveryStatus: string
+    gameName: string
+    productName: string
+    orderId: string
+    orderNumber: string
+    userInfo: string
 }
