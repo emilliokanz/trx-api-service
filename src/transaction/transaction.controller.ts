@@ -28,7 +28,7 @@ import { AuthService } from 'src/auth/auth.service';
 const pump = util.promisify(pipeline);
 
 
-@Controller('transactions')
+@Controller('/api/v1/itemku/transactions')
 export class TransactionController {
   constructor(private readonly transactionService: TransactionService  ) { }
 
