@@ -5,7 +5,7 @@ import { CreateProductDto } from './dto/createProduct.dto';
 import { UpdateProductDto } from './dto/updateProduct.dto';
 import { ProductService } from './product.service';
 
-@Controller('product')
+@Controller('/api/v1/itemku/product')
 export class ProductController {
   constructor(private productService: ProductService) {}
 
