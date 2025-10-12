@@ -28,6 +28,7 @@ import { TelegramLib } from 'src/lib/telegram';
 import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction.dto';
 import { GetTransaction } from './dto/transaction/getTransaction.dto';
 import * as moment from 'moment';
+import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 
 @Injectable()
 export class TransactionService {
@@ -144,15 +145,17 @@ export class TransactionService {
   }
 
   async getItemkuOrderHistory(transactionData: GetTransaction) {
-    const { page, size, dateEnd, dateStart, sort, status } = transactionData;
-    console.log(dateStart, dateEnd, "dates")
+    const { page, size, dateEnd, dateStart, sort, status, gameName, productName, orderId, orderNumber, userInfo, deliveryStatus } = transactionData;
 
+    console.log(dateStart, dateEnd, "dates");
+
+    // ✅ Build where clause dynamically
     const whereClause: Prisma.ItemkuOrderWhereInput = {
-      transactionHistory: {
-        every: {
-          ...(status ? { status } : {}),
-        },
-      },
+      ...(gameName ? { game_name: { contains: gameName, mode: 'insensitive' } } : {}),
+      ...(productName ? { product_name: { contains: productName, mode: 'insensitive' } } : {}),
+      ...(orderId ? { order_id: { equals: Number(orderId) } } : {}),
+      ...(orderNumber ? { order_number: { contains: orderNumber, mode: 'insensitive' } } : {}),
+      ...(deliveryStatus ? { status: { contains: deliveryStatus, mode: 'insensitive' } } : {}),
       ...(dateStart && dateEnd
         ? {
           updatedAt: {
@@ -161,13 +164,48 @@ export class TransactionService {
           },
         }
         : {}),
+
+      // ✅ Nested transaction history filtering
+      transactionHistory: {
+        every: {
+          ...(status ? { status } : {}),
+        },
+      },
+
+      // ✅ Filter based on JSON field (userInfo)
+      ...(userInfo
+        ? {
+          OR: [
+            {
+              required_information: {
+                path: ['required_information', 'username'],
+                string_contains: userInfo
+              }
+            },
+            {
+              required_information: {
+                path: ['required_information', 'zone_id'],
+                string_contains: userInfo
+              }
+            },
+            {
+              required_information: {
+                path: ['required_information', 'player_id'],
+                string_contains: userInfo
+              }
+            }
+          ]
+        }
+        : {}),
     };
 
+    // ✅ Sorting
     const orderByClause: Prisma.ItemkuOrderOrderByWithAggregationInput =
       sort === 'DATE_ASC'
         ? { updatedAt: 'asc' }
-        : { updatedAt: 'desc' }
+        : { updatedAt: 'desc' };
 
+    // ✅ Fetch paginated data
     const data = await this.prisma.itemkuOrder.findMany({
       skip: (page - 1) * size,
       take: size,
@@ -175,13 +213,13 @@ export class TransactionService {
       include: {
         transactionHistory: true,
       },
-      orderBy: orderByClause
+      orderBy: orderByClause,
     });
 
-    const totalData = await this.prisma.itemkuOrder.count({
-      where: whereClause,
-    });
+    // ✅ Total count
+    const totalData = await this.prisma.itemkuOrder.count({ where: whereClause });
 
+    // ✅ Pagination response
     const paginationData: PaginationIface = {
       data,
       totalData,
@@ -189,10 +227,12 @@ export class TransactionService {
       pageLength: Math.ceil(totalData / size),
     };
 
-    this.updateAllTxTStatus;
+    // (Assuming updateAllTxTStatus is a function call, not a property)
+    await this.updateAllTxTStatus();
 
-    return paginationData;
+    return new ApiResponseDto('success', paginationData, '0000');
   }
+
 
   async updateAllTxTStatus() {
     const data = await this.prisma.transactionHistory.findMany({
