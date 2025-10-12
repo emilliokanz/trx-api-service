@@ -30,19 +30,8 @@ const pump = util.promisify(pipeline);
 
 @Controller('transactions')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService, private readonly authService: AuthService) {}
+  constructor(private readonly transactionService: TransactionService  ) { }
 
-  @Post()
-  async createTransaction(@Body() transactionData: TransactionRequestDto, @Req() req: any) {
-    const apiKey = req.headers['api-key'];
-    const user = await this.authService.getUserDetail(req.headers.authorization)
-
-
-    return this.transactionService.addTransaction(
-      transactionData,
-      apiKey || ''
-    );
-  }
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/status')
   @HttpCode(200)
@@ -59,18 +48,20 @@ export class TransactionController {
     return this.transactionService.updateAllTxTStatus();
   }
 
+  @UseGuards(AuthGuard)
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Get('/:id')
   async getJobTransactionStatus(@Param('id') id: string) {
     return this.transactionService.getJobTransactionStatus(id);
   }
 
+  @UseGuards(AuthGuard)
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/request')
   async createPaymentTransactionRequest(@Body() transactionData: any) {
     return this.transactionService.requestTransactionBypass(transactionData);
   }
-  
+
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/compare')
   async compareCurrentPrice(@Body() transactionData: any) {
@@ -91,7 +82,7 @@ export class TransactionController {
   }
 
   @UseGuards(AuthGuard)
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @HttpCode(200)
   @Post('/get')
   async getTxHistories(@Body() transactionData: any) {
@@ -104,7 +95,7 @@ export class TransactionController {
   }
 
   @UseGuards(AuthGuard)
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @HttpCode(200)
   @Post('/get-itemku-history')
   async getItemkuTxHistories(@Body() transactionData: GetTransaction) {
@@ -113,46 +104,58 @@ export class TransactionController {
     );
   }
 
+
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.SuperAdmin])
   @Post('/mock-order-itemku')
-  async mockItemkuOrder(@Body() data : ItemkuOrder){
+  async mockItemkuOrder(@Body() data: ItemkuOrder) {
     return this.transactionService.updateItemkuOrderStatus(data)
   }
 
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/update-order-itemku')
-  async updateItemkuOrder(@Body() data : ItemkuOrder){
+  async updateItemkuOrder(@Body() data: ItemkuOrder) {
     return this.transactionService.updateItemkuOrderStatus(data)
   }
 
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/bulk-update-tx')
-  async bulkUpdatetx(){
+  async bulkUpdatetx() {
     return this.transactionService.bulkUpdateItemkuOrderStatus()
   }
 
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/manual-update-tx')
-  async manualUpdatetx(@Body() data : any){
+  async manualUpdatetx(@Body() data: any) {
     return this.transactionService.manualUpdateTxHistory(data.refIds)
   }
-  
+
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.SuperAdmin])
   @Post('/get-digiflazz')
-  async getDigiflazzProductPrice(){
+  async getDigiflazzProductPrice() {
     return this.transactionService.getDigiflazzPrice()
   }
 
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.SuperAdmin])
   @Post('/get-itemku')
-  async getItemkuProductPrice(){
+  async getItemkuProductPrice() {
     return this.transactionService.getItemkuPrice()
   }
 
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/update-tx-history')
-  async updateTransactionHistoryDetail(@Body() data: UpdateTransactionRequestDto){
+  async updateTransactionHistoryDetail(@Body() data: UpdateTransactionRequestDto) {
     return this.transactionService.updateTxHistoryById(data)
   }
 
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])  
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/itemku/product/upload')
   async uploadFile(@Req() req: any): Promise<any> {
     try {
@@ -161,35 +164,35 @@ export class TransactionController {
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir);
       }
-      
+
       // Process file upload with Fastify
       const data = await req.file();
-      
+
       if (!data) {
         throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
       }
-      
+
       // Validate file type
       const fileExtension = path.extname(data.filename).toLowerCase();
       if (!['.xls', '.xlsx'].includes(fileExtension)) {
         throw new HttpException('Only Excel files (.xls, .xlsx) are allowed', HttpStatus.BAD_REQUEST);
       }
-      
+
       // Create a unique filename
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const fileName = `file-${uniqueSuffix}${fileExtension}`;
       const filePath = path.join(uploadDir, fileName);
-      
+
       // Write the file
       const writeStream = fs.createWriteStream(filePath);
       await pump(data.file, writeStream);
-      
+
       // Parse the excel file
       const result = await this.transactionService.parseItemkuExcel(filePath);
-      
+
       // Optional: Remove the file after processing
       // fs.unlinkSync(filePath);
-      
+
       return { status: 'success', data: result };
     } catch (error) {
       throw new HttpException(

@@ -108,18 +108,18 @@ export class TransactionService {
   async getTransactionHistories(page: number, take: number, status?: string, source?: string) {
     let where: any = {}
 
-    if(status){
+    if (status) {
       where = {
         status
       }
     }
 
-    if(source){
+    if (source) {
       where = {
         source,
       }
     }
-    
+
     const data = await this.prisma.transactionHistory.findMany({
       skip: page - 1,
       take,
@@ -146,7 +146,7 @@ export class TransactionService {
   async getItemkuOrderHistory(transactionData: GetTransaction) {
     const { page, size, dateEnd, dateStart, sort, status } = transactionData;
     console.log(dateStart, dateEnd, "dates")
-  
+
     const whereClause: Prisma.ItemkuOrderWhereInput = {
       transactionHistory: {
         every: {
@@ -155,19 +155,19 @@ export class TransactionService {
       },
       ...(dateStart && dateEnd
         ? {
-            updatedAt: {
-              gte: moment(dateStart, 'DD-MM-YYYY').toDate(),
-              lte: moment(dateEnd, 'DD-MM-YYYY').toDate(),
-            },
-          }
+          updatedAt: {
+            gte: moment(dateStart, 'DD-MM-YYYY').toDate(),
+            lte: moment(dateEnd, 'DD-MM-YYYY').toDate(),
+          },
+        }
         : {}),
     };
-  
+
     const orderByClause: Prisma.ItemkuOrderOrderByWithAggregationInput =
       sort === 'DATE_ASC'
-        ? { updatedAt: 'asc'  }
-        : {   updatedAt: 'desc'  }
-  
+        ? { updatedAt: 'asc' }
+        : { updatedAt: 'desc' }
+
     const data = await this.prisma.itemkuOrder.findMany({
       skip: (page - 1) * size,
       take: size,
@@ -177,48 +177,48 @@ export class TransactionService {
       },
       orderBy: orderByClause
     });
-  
+
     const totalData = await this.prisma.itemkuOrder.count({
       where: whereClause,
     });
-  
+
     const paginationData: PaginationIface = {
       data,
       totalData,
       page,
       pageLength: Math.ceil(totalData / size),
     };
-  
+
     this.updateAllTxTStatus;
-  
+
     return paginationData;
   }
-  
-  async updateAllTxTStatus(){
+
+  async updateAllTxTStatus() {
     const data = await this.prisma.transactionHistory.findMany({
       where: {
         status: TransactionStatus.PENDING
       }
     })
     const updatedIds: string[] = []
-    data.forEach(async(x) => {
-        if(x.status == TransactionStatus.PENDING){
-          try{
-            const statusFetch = await this.getPaymentTransactionStatus(x.ref_id)
-            updatedIds.push(x.ref_id)
-            console.log(statusFetch)
-          }catch(e){
-            console.log(e)
-            console.error(`failed fetching status, refID : ${x.ref_id}`)
-          }
+    data.forEach(async (x) => {
+      if (x.status == TransactionStatus.PENDING) {
+        try {
+          const statusFetch = await this.getPaymentTransactionStatus(x.ref_id)
+          updatedIds.push(x.ref_id)
+          console.log(statusFetch)
+        } catch (e) {
+          console.log(e)
+          console.error(`failed fetching status, refID : ${x.ref_id}`)
         }
+      }
     })
 
     return updatedIds
   }
 
-  async manualUpdateTxHistory(refIds: string[]){
-    try{
+  async manualUpdateTxHistory(refIds: string[]) {
+    try {
       await this.prisma.transactionHistory.updateMany({
         where: {
           ref_id: {
@@ -229,7 +229,7 @@ export class TransactionService {
           status: TransactionStatus.SUCCESS
         }
       })
-    }catch(e){
+    } catch (e) {
       console.error(`failed updating all tx`)
       console.log(e)
       return e
@@ -237,7 +237,7 @@ export class TransactionService {
 
     return refIds
   }
-  
+
   async getTransactionHistoryById(ref_id: string) {
     const data = await this.prisma.transactionHistory.findUnique({
       where: { ref_id },
@@ -413,8 +413,8 @@ export class TransactionService {
     if (trxStatus == TransactionStatus.SUCCESS.toString()) {
       console.log(transaction, "transaction")
       let setProfit = 0
-      if(transaction.source == 'ITEMKU'){
-        if(transaction.order?.price && product?.price){
+      if (transaction.source == 'ITEMKU') {
+        if (transaction.order?.price && product?.price) {
           setProfit = transaction.order?.price - product?.price
           console.log(setProfit, "profit amount", product?.price, "product price")
         }
@@ -424,22 +424,7 @@ export class TransactionService {
 
       const profit = await this.owner.divideOwnerProfit(setProfit, 'INT');
       this.logger.debug("Received Profit", profit)
-      // const updateUserBalance = await this.balance.createBalanceHistory({
-      //   username: transaction.customer_username ?? '',
-      //   af_balance: transaction.customer?.balance ?? 0,
-      //   bf_balance: (transaction.customer?.balance ?? 0) + (transaction.item_price ?? 0),
-      //   amount: transaction.item_price ?? 0,
-      //   customerId: transaction.customer?.id ?? 0,
-      //   name: transaction.customer?.name ?? '',
-      //   ref_id,
-      //   type: 'Transaction'
-      // })
-      // console.debug("Update customer balance", updateUserBalance)
     }
-
-    // if (trxStatus == TransactionStatus.FAILED.toString()) {
-    //   await this.customer.addUserBalance(transaction.item_price || 0, transaction.customer_username || '')
-    // }
 
     return update;
   }
@@ -465,7 +450,7 @@ export class TransactionService {
 
     const validApiKey = await bcrypt.compare(apiKey, findUser[0].apiKey);
 
-    if (!validApiKey ) {
+    if (!validApiKey) {
       return 'Invalid API key';
     }
 
@@ -645,23 +630,23 @@ export class TransactionService {
       }
     })
 
-    if(transactions.length !== 0){
-      transactions.forEach(async(tx) => {
+    if (transactions.length !== 0) {
+      transactions.forEach(async (tx) => {
         const ref_id = generateReferenceId();
-        
-  
-        if(tx.order){
-          try{
+
+
+        if (tx.order) {
+          try {
             await this.processTransaction(ref_id, tx.buyer_sku_code, tx.customer_no, tx.order_id || 0, tx.order)
-          }catch(_){
+          } catch (_) {
             console.error(`failed processing tx: ${ref_id}, with orderId: ${tx.order_id}`)
           }
         }
       })
-  
-      const toDeleteRefIds : string[]= []
+
+      const toDeleteRefIds: string[] = []
       transactions.forEach((x) => toDeleteRefIds.push(x.ref_id))
-  
+
       await this.prisma.transactionHistory.deleteMany({
         where: {
           ref_id: {
@@ -674,7 +659,7 @@ export class TransactionService {
     return transactions
   }
 
-  async processUpdateItemkuOrder(orderData: ItemkuOrder){
+  async processUpdateItemkuOrder(orderData: ItemkuOrder) {
     let customer_no: string | null = ''
 
     const payload = {
@@ -686,7 +671,7 @@ export class TransactionService {
     const apiUrl = 'https://tokoku-gateway.itemku.com/api/order/action'; // Ganti dengan URL endpoint Anda
 
     try {
-      if(process.env.NODE_ENV !== "dev"){
+      if (process.env.NODE_ENV !== "dev") {
         const updateOrder = await axios.post(apiUrl, payload, {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -746,7 +731,7 @@ export class TransactionService {
 
       this.logger.debug('processing transaction')
 
-      const product = await this.getProductByItemKu(orderData.game_name, orderData.product_name)
+      const product = await this.getProductByItemKu(orderData)
 
       if (!product) {
         const ref_id = generateReferenceId();
@@ -789,24 +774,39 @@ export class TransactionService {
     });
   }
 
-  async getProductByItemKu(gameName: string, productName: string) {
+  async getProductByItemKu(itemkuOrder: ItemkuOrder) {
     const product = await this.prisma.productPrice.findMany({
       where: {
         ItemkuProduct: {
           some: {
-            item_name: productName,
-            game_name: gameName
+            item_name: itemkuOrder.product_name,
+            game_name: itemkuOrder.game_name
           }
         }
+      }
+    })
+
+    const itemkuProduct = await this.prisma.itemkuProduct.findMany({
+      where: {
+        item_name: itemkuOrder.product_name
       }
     })
 
     console.log(product, "found product")
 
     if (product.length === 0) {
-      this.logger.error(`Searching product with game name: ${gameName} and product name: ${productName} not found`)
+      this.logger.error(`Searching product with game name: ${itemkuOrder.game_name} and product name: ${itemkuOrder.product_name} not found`)
+      await this.telegramLib.sendMessage("Produk Suplier Digiflazz tidak ditemukan", 'FAILED ITEMKU', itemkuOrder)
+      console.log('Error Digiflazz Request Transaction', "Produk Suplier Digiflazz tidak ditemukan");
       return null
-    } else {
+    }
+    if (itemkuProduct[0] && !itemkuProduct[0].product_id) {
+      this.logger.error(`Searching product with game name: ${itemkuOrder.game_name} and product name: ${itemkuOrder.product_name} not found`)
+      await this.telegramLib.sendMessage("Produk Suplier Digiflazz tidak ditemukan", 'FAILED ITEMKU', itemkuOrder)
+      console.log('Error Digiflazz Request Transaction', "Produk Suplier Digiflazz tidak ditemukan");
+      return null
+    }
+    else {
       return product[0]
     }
   }
@@ -868,7 +868,7 @@ export class TransactionService {
         sign: sign,
       };
 
-      if(process.env.NODE_ENV !== "dev"){
+      if (process.env.NODE_ENV !== "dev") {
         const response = await httpAgentPost(
           requestBody,
           'https://api.digiflazz.com/v1/transaction',
@@ -1047,12 +1047,14 @@ export class TransactionService {
     return updatedProducts;
   }
 
-  async updateTxHistoryById(data: UpdateTransactionRequestDto){
-    const findTx = await this.prisma.transactionHistory.findUnique({where: {
-      ref_id: data.ref_id
-    }})
+  async updateTxHistoryById(data: UpdateTransactionRequestDto) {
+    const findTx = await this.prisma.transactionHistory.findUnique({
+      where: {
+        ref_id: data.ref_id
+      }
+    })
 
-    if(!findTx){
+    if (!findTx) {
       return new HttpException("Transaction not found", HttpStatus.OK)
     }
 
