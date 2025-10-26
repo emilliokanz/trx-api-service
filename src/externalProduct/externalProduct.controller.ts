@@ -95,10 +95,22 @@ export class ExternalProductController {
 
   @UseGuards(AuthGuard)
   @UserRoles([Roles.SuperAdmin])
-  @Post('/get-product')
+  @Post('/update-supplier')
   async updateDigi() {
 
     const product = await this.extProductService.getDigiflazzPrice()
+    return new ApiResponseDto("success",
+      product
+    , '0000')
+
+  }
+
+  
+  @UseGuards(AuthGuard)
+  @UserRoles([Roles.SuperAdmin])
+  @Post('/get-product')
+  async getProducts() {
+    const product = await this.extProductService.getSupplierProduct()
     return new ApiResponseDto("success",
       product
     , '0000')
