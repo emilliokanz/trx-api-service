@@ -110,10 +110,6 @@ export class ExternalProductController {
   @UserRoles([Roles.SuperAdmin])
   @Post('/get-product')
   async getProducts() {
-    const product = await this.extProductService.getSupplierProduct()
-    return new ApiResponseDto("success",
-      product
-    , '0000')
-
+    return await this.extProductService.getSupplierProduct()
   }
 }
