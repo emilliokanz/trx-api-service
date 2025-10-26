@@ -19,54 +19,61 @@ export class ExternalProductService {
     constructor(private prisma: PrismaService, private externalUser: ExternalAuthService) { }
 
     async createProduct(payload: CreateExtProduct[]) {
-        const success: any = []
+        const success: any[] = []
         const failed: string[] = []
-        const junctionProducts: any[] = []
 
-        if (payload.length == 0) {
-            throw new HttpException(new ApiResponseDto(errorMap[4000], null, '4000'), HttpStatus.BAD_REQUEST)
+        if (payload.length === 0) {
+            throw new HttpException(
+                new ApiResponseDto(errorMap[4000], null, '4000'),
+                HttpStatus.BAD_REQUEST,
+            )
         }
 
         const mappedProducts = await extProductToDb(payload)
+
         try {
-            const product = await this.prisma.externalProduct.createMany({
-                data: mappedProducts, skipDuplicates: true
-            })
-
-
-            for (const x of payload) {
+            // Loop through each product individually
+            for (const [index, x] of payload.entries()) {
                 const errors = await this.validateProduct(x)
 
                 if (errors.length > 0) {
                     failed.push(...errors)
                     continue
-                } else {
-                    x.products.forEach((y) => {
-                        y.item_id = x.item_id
+                }
+
+                const productData = mappedProducts[index]
+
+                // Create product one by one
+                const createdProduct = await this.prisma.externalProduct.create({
+                    data: productData,
+                })
+
+                // Prepare and create junction entries for this product
+                const junctionProducts = x.products.map((y) => ({
+                    ...y,
+                    item_id: x.item_id,
+                }))
+
+                if (junctionProducts.length > 0) {
+                    await this.prisma.extProductToSupplierJunction.createMany({
+                        data: junctionProducts,
+                        skipDuplicates: true,
                     })
-                    junctionProducts.push(...x.products)
                 }
 
+                success.push(createdProduct)
             }
 
-            if (junctionProducts.length > 0) {
-                const args: Prisma.ExtProductToSupplierJunctionCreateManyArgs = {
-                    data: junctionProducts[0],
-                    skipDuplicates: true,
-                }
-
-                if (product && args) {
-                    await this.prisma.extProductToSupplierJunction.createMany(args)
-                }
-            }
-
-            return new ApiResponseDto("success", { success: product, failed }, '0000')
-
+            return new ApiResponseDto('success', { success, failed }, '0000')
         } catch (error: any) {
-            console.log(error.message)
-            throw new HttpException(new ApiResponseDto(errorMap[5000], null, '5000'), HttpStatus.BAD_REQUEST)
+            console.error(error.message)
+            throw new HttpException(
+                new ApiResponseDto(errorMap[5000], null, '5000'),
+                HttpStatus.BAD_REQUEST,
+            )
         }
     }
+
 
     async getSupplierProduct() {
         const supplierProduct = await this.prisma.externalSupplierProduct.findMany()
@@ -165,7 +172,7 @@ export class ExternalProductService {
 
         if (payload.products) {
             for (const x of payload.products) {
-                const product = await this.prisma.externalSupplierProduct.findFirst({
+                const product = await this.prisma.externalSupplierProduct.findUnique({
                     where: {
                         id: x.product_id
                     }
@@ -180,13 +187,12 @@ export class ExternalProductService {
             }
         }
 
-        console.log(sPrice, "sPrice")
         if (payload.price <= sPrice) {
             errors.push(`${errorMap[2001]} ${payload.item_id}`)
 
         }
 
-        if (payload.admin_price <= payload.price) {
+        if (payload.admin_price < payload.price) {
             errors.push(`${errorMap[2003]} ${payload.item_id}`)
         }
 
@@ -285,7 +291,7 @@ export class ExternalProductService {
 
             if (errors.length > 0) {
                 failed.push(...errors);
-                continue; // skip to next item
+                continue;
             }
 
             else try {
@@ -415,7 +421,7 @@ export class ExternalProductService {
                     stock: 100,
                     multi: true,
                     start_cut_off: '00:00',
-                    end_cut_off:  '00:00',
+                    end_cut_off: '00:00',
                     desc: "",
                     actualPrice: null,
                 },

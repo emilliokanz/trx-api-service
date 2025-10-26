@@ -530,7 +530,6 @@ export class ExternalTransactionService {
         console.log(e, "errors")
         throw new ApiResponseDto(errorMap[1007], null, "1007")
       }
-
     }
   }
 
