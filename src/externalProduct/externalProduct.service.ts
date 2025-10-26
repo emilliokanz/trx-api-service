@@ -61,6 +61,11 @@ export class ExternalProductService {
                     })
                 }
 
+                if (errors.length > 0) {
+                    throw new HttpException(new ApiResponseDto(errorMap[4008], errors, '4008'), HttpStatus.BAD_REQUEST)
+                }
+
+
                 success.push(createdProduct)
             }
 
