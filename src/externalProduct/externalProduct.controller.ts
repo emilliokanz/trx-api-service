@@ -99,9 +99,9 @@ export class ExternalProductController {
   async updateDigi() {
 
     const product = await this.extProductService.getDigiflazzPrice()
-    return new ApiResponseDto("success", {
+    return new ApiResponseDto("success",
       product
-    }, '0000')
+    , '0000')
 
   }
 }
