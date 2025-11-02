@@ -24,3 +24,9 @@ export enum TransactionStatus {
   SUCCESS = 'Sukses',
   FAILED = 'Gagal',
 }
+
+export interface RetryItemkuTransaction {
+  buyer_sku_code: string, 
+  customer_no: string, 
+  ref_id: string
+}

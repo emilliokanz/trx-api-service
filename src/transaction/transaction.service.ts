@@ -13,6 +13,7 @@ import generateReferenceId from 'src/utils/generateReferenceId';
 import generateSignature from 'src/utils/generateSignature';
 import {
   Bill,
+  RetryItemkuTransaction,
   TransactionDetail,
   TransactionRequest,
   TransactionStatus,
@@ -29,6 +30,7 @@ import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction
 import { GetTransaction } from './dto/transaction/getTransaction.dto';
 import * as moment from 'moment';
 import { ApiResponseDto } from 'src/dto/apiResponse.dto';
+import { errorMap } from 'src/lib/errorCodes';
 
 @Injectable()
 export class TransactionService {
@@ -146,8 +148,6 @@ export class TransactionService {
 
   async getItemkuOrderHistory(transactionData: GetTransaction) {
     const { page, size, dateEnd, dateStart, sort, status, gameName, productName, orderId, orderNumber, userInfo, deliveryStatus } = transactionData;
-
-    console.log(dateStart, dateEnd, "dates");
 
     // ✅ Build where clause dynamically
     const whereClause: Prisma.ItemkuOrderWhereInput = {
@@ -279,17 +279,32 @@ export class TransactionService {
   }
 
   async getTransactionHistoryById(ref_id: string) {
-    const data = await this.prisma.transactionHistory.findUnique({
+    const find = await this.prisma.transactionHistory.findUnique({
       where: { ref_id },
       include: {
         order: true,
+        retry_history: {
+          select: {
+            transaction: true
+          }
+        }
       }
-      // include: {
-      //   customer: true
-      // }
     });
 
-    return data;
+    if (!find) {
+      throw new HttpException(
+        new ApiResponseDto(errorMap[4004], null, "4004"),
+        HttpStatus.BAD_REQUEST
+      );
+    };
+
+    // flatten retry_history
+    const result = {
+      ...find,
+      retry_history: find.retry_history.map((r) => r.transaction),
+    };
+
+    return result;
   }
 
 
@@ -357,7 +372,73 @@ export class TransactionService {
     }
   }
 
-  async requestTransactionBypass(transactionData: TransactionRequest) {
+  async retryItemkuTransaction(parent_ref_id: string) {
+    const findOrder = await this.prisma.itemkuOrder.findMany({
+      where: {
+        transactionHistory: {
+          some: {
+            ref_id: parent_ref_id
+          }
+        }
+      },
+      include: {
+        transactionHistory: {
+          include: {
+            retry_history: {
+              include: {
+                transaction: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (findOrder.length == 0) {
+      return new HttpException("order not found", HttpStatus.BAD_REQUEST);
+    }
+
+    const transaction = findOrder[0].transactionHistory.find(
+      (t) => t.ref_id === parent_ref_id
+    );
+
+    if (!transaction) {
+      return new HttpException("transaction not found", HttpStatus.BAD_REQUEST);
+    }
+
+    if (transaction.status == TransactionStatus.SUCCESS.toString()) {
+      return new HttpException(`transaction ref: ${transaction.ref_id} status is already SUCCESS`, HttpStatus.BAD_REQUEST);
+    }
+
+    if (transaction.retry_history) {
+      const findSuccess = transaction.retry_history.find((x) => x.transaction.status == TransactionStatus.SUCCESS)
+
+      if (findSuccess) {
+        return new HttpException(`retry transaction status is already SUCCESS`, HttpStatus.BAD_REQUEST);
+      }
+    }
+
+    const ref_id = generateReferenceId();
+
+    const data = {
+      parent_ref_id: transaction.ref_id,
+      child_ref_id: ref_id
+    }
+
+    await this.processTransaction(
+      ref_id,
+      findOrder[0].transactionHistory[0].buyer_sku_code,
+      findOrder[0].transactionHistory[0].customer_no,
+      findOrder[0].order_id,
+      findOrder[0],
+      true,
+      data
+    )
+
+    return new ApiResponseDto('success', data, '0000')
+  }
+
+  async requestTransactionBypass(transactionData: RetryItemkuTransaction) {
     const { buyer_sku_code, customer_no, ref_id } =
       transactionData;
 
@@ -380,7 +461,7 @@ export class TransactionService {
 
       console.log('Success Digiflazz Request Transaction', response.data);
 
-      // await this.getPaymentTransactionStatus(ref_id)
+      await this.getPaymentTransactionStatus(ref_id)
 
       return response.data;
 
@@ -394,8 +475,7 @@ export class TransactionService {
         console.log('Error processing transaction', error.message)
       }
 
-      // Return deducted balance
-      return new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      return new HttpException(error.message, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -449,6 +529,18 @@ export class TransactionService {
       where: { ref_id },
       data: { status: trxStatus },
     });
+
+    if (transaction.isRetry) {
+      const findParent = await this.prisma.retryItemkuHistory.findUnique({
+        where: {
+          ref_id
+        }
+      })
+      await this.prisma.transactionHistory.update({
+        where: { ref_id: findParent?.parent_transaction_id },
+        data: { retry_status: trxStatus },
+      });
+    }
 
     if (trxStatus == TransactionStatus.SUCCESS.toString()) {
       console.log(transaction, "transaction")
@@ -896,7 +988,15 @@ export class TransactionService {
     const orders = response.data.data
   }
 
-  async processTransaction(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number, itemkuOrder?: ItemkuOrder) {
+  async processTransaction(
+    ref_id: string,
+    buyer_sku_code: string,
+    customer_no: string,
+    order_id: number,
+    itemkuOrder?: ItemkuOrder,
+    isRetry?: boolean,
+    retryTransactionDetail?: any
+  ) {
     try {
       const sign = generateSignature(process.env.DIGI_USERNAME ?? '', process.env.DIGI_API_KEY ?? '', ref_id);
 
@@ -926,14 +1026,26 @@ export class TransactionService {
           item_price: 0,
           customer_username: '',
           source: 'ITEMKU',
-          order_id
+          order_id,
+          isRetry: isRetry || false
         },
       });
+
+      if (isRetry) {
+        await this.prisma.retryItemkuHistory.create({
+          data: {
+            ref_id,
+            parent_transaction_id: retryTransactionDetail.parent_ref_id,
+            transaction_ref_id: ref_id
+          }
+        })
+      }
 
 
 
       await this.getPaymentTransactionStatus(ref_id)
     } catch (error: any) {
+      console.log(error, "error message")
       if (error.response.data.data) {
         await this.telegramLib.sendMessage(error.response.data.data, 'FAILED ITEMKU', itemkuOrder)
         console.log('Error Digiflazz Request Transaction', error.response.data.data);

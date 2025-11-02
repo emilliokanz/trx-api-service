@@ -25,12 +25,13 @@ import * as path from 'path';
 import { UpdateTransactionRequestDto } from './dto/transaction/updateTransaction.dto';
 import { GetTransaction } from './dto/transaction/getTransaction.dto';
 import { AuthService } from 'src/auth/auth.service';
+import { ApiResponseDto } from 'src/dto/apiResponse.dto';
 const pump = util.promisify(pipeline);
 
 
 @Controller('/api/v1/itemku/transactions')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService  ) { }
+  constructor(private readonly transactionService: TransactionService) { }
 
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
   @Post('/status')
@@ -56,10 +57,10 @@ export class TransactionController {
   }
 
   @UseGuards(AuthGuard)
-  @UserRoles([Roles.Admin, Roles.SuperAdmin])
-  @Post('/request')
-  async createPaymentTransactionRequest(@Body() transactionData: any) {
-    return this.transactionService.requestTransactionBypass(transactionData);
+  @UserRoles([Roles.SuperAdmin])
+  @Post('/retry')
+  async createPaymentTransactionRequest(@Body() body: any) {
+    return this.transactionService.retryItemkuTransaction(body.ref_id);
   }
 
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
@@ -76,9 +77,11 @@ export class TransactionController {
   @HttpCode(200)
   @Post('/get-one')
   async getTxHistory(@Body() transactionData: any) {
-    return this.transactionService.getTransactionHistoryById(
+
+    return new ApiResponseDto('success', await this.transactionService.getTransactionHistoryById(
       transactionData.ref_id,
-    );
+    ), '0000');
+
   }
 
   @UseGuards(AuthGuard)

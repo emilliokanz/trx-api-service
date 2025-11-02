@@ -8,14 +8,14 @@ datasource db {
 }
 
 model TransactionHistory {
-  ref_id            String       @id
+  ref_id            String               @id
   username          String
   buyer_sku_code    String
   customer_no       String
   sign              String
   customer_id       Int?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @default(now()) @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @default(now()) @updatedAt
   profit            Int?
   status            String?
   createdBy         Int?
@@ -23,9 +23,22 @@ model TransactionHistory {
   customer_username String?
   source            String?
   order_id          Int?
-  user              User?        @relation(fields: [createdBy], references: [id])
-  customer          Customer?    @relation(fields: [customer_id], references: [id])
-  order             ItemkuOrder? @relation(fields: [order_id], references: [order_id])
+  isRetry           Boolean?
+  retry_status      String?
+  user              User?                @relation(fields: [createdBy], references: [id])
+  customer          Customer?            @relation(fields: [customer_id], references: [id])
+  order             ItemkuOrder?         @relation(fields: [order_id], references: [order_id])
+  retry_history     RetryItemkuHistory[] @relation("ParentTransaction")
+  retried_by        RetryItemkuHistory[] @relation("ChildTransaction")
+  }
+
+model RetryItemkuHistory {
+  ref_id                  String             @id
+  parent_transaction_id   String
+  transaction_ref_id      String
+
+  parent_transaction      TransactionHistory @relation("ParentTransaction", fields: [parent_transaction_id], references: [ref_id])
+  transaction             TransactionHistory @relation("ChildTransaction", fields: [transaction_ref_id], references: [ref_id])
 }
 
 model Customer {
@@ -289,51 +302,51 @@ model ExternalAdminCustProduct {
 }
 
 model SupplierBalances {
-    id                           Int                            @id @default(autoincrement())
-    name String @unique
-    balance Int
-    history SupplierBalanceHistory[]
+  id      Int                      @id @default(autoincrement())
+  name    String                   @unique
+  balance Int
+  history SupplierBalanceHistory[]
 }
 
 model SupplierBalanceHistory {
-  id                           Int                            @id @default(autoincrement())
+  id                Int              @id @default(autoincrement())
   supplierBalanceId Int
-  createdBy                Int?
-  createdAt                DateTime                       @default(now())
-  updatedAt                DateTime                       @default(now()) @updatedAt
-  supplierBalance SupplierBalances @relation(fields: [supplierBalanceId], references: [id])
+  createdBy         Int?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
+  supplierBalance   SupplierBalances @relation(fields: [supplierBalanceId], references: [id])
 }
 
 model TopupTransaction {
-  id               Int      @id @default(autoincrement())
-  requestorId      Int
-  approver         Int?     // Nullable: filled after status change
-  refNo            String   // Used to match to payment receipt
-  amount           Float
-  accountNo        String   // super admin account no
-  accountName      String   // super admin account name
-  fromBankAccount  String
-  toBankAccount    String
-  fromBankName     String
-  toBankName       String
+  id                  Int               @id @default(autoincrement())
+  requestorId         Int
+  approver            Int? // Nullable: filled after status change
+  refNo               String // Used to match to payment receipt
+  amount              Float
+  accountNo           String // super admin account no
+  accountName         String // super admin account name
+  fromBankAccount     String
+  toBankAccount       String
+  fromBankName        String
+  toBankName          String
   fromBankAccountName String?
-  toBankAccountName String?
-  txType           TxType
-  status           TransactionStatus
-  createdBy        Int?
-  user             ExternalUser?                  @relation(fields: [requestorId], references: [id])
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  toBankAccountName   String?
+  txType              TxType
+  status              TransactionStatus
+  createdBy           Int?
+  user                ExternalUser?     @relation(fields: [requestorId], references: [id])
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 }
 
 model BankAccount {
-  id           Int      @id @default(autoincrement())
-  accountNo    String
-  bankName     String
-  accountName  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  createdBy Int?
+  id          Int      @id @default(autoincrement())
+  accountNo   String
+  bankName    String
+  accountName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   Int?
 }
 
 // Enum for transaction type
@@ -349,7 +362,6 @@ enum TransactionStatus {
   REJECTED
   FAILED
 }
-
 
 enum Roles {
   Admin
