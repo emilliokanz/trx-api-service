@@ -372,10 +372,10 @@ export class TransactionService {
     }
   }
 
-  async retryItemkuTransaction(order_id: number) {
+  async retryItemkuTransaction(order_ids: number[]) {
     try {
-      const findOrder = await this.prisma.itemkuOrder.findMany({
-        where: { order_id },
+      const findOrders = await this.prisma.itemkuOrder.findMany({
+        where: { order_id: { in: order_ids } },
         include: {
           transactionHistory: {
             include: {
@@ -387,64 +387,64 @@ export class TransactionService {
         }
       });
 
-      if (findOrder.length === 0) {
-        throw new HttpException("Order not found", HttpStatus.BAD_REQUEST);
+      if (findOrders.length === 0) {
+        throw new HttpException("No orders found", HttpStatus.BAD_REQUEST);
       }
 
       const success: any[] = [];
       const failed: any[] = [];
 
-      const order = findOrder[0];
-
-      for (const transaction of order.transactionHistory) {
-        // Skip retry if main transaction already successful
-        if (transaction.status === TransactionStatus.SUCCESS.toString()) {
-          const message = `Transaction ref: ${transaction.ref_id} is already SUCCESS`;
-          console.log(message);
-          failed.push(message);
-          continue;
-        }
-
-        // Skip retry if any retry history already has a success
-        if (transaction.retry_history) {
-          const successRetry = transaction.retry_history.find(
-            (x) => x.transaction?.status === TransactionStatus.SUCCESS.toString()
-          );
-          if (successRetry) {
-            const message = `Retry transaction ref: ${successRetry.transaction.ref_id} is already SUCCESS`;
+      for (const order of findOrders) {
+        for (const transaction of order.transactionHistory) {
+          // Skip retry if main transaction already successful
+          if (transaction.status === TransactionStatus.SUCCESS.toString()) {
+            const message = `Order ${order.order_id}: Transaction ref ${transaction.ref_id} is already SUCCESS`;
             console.log(message);
             failed.push(message);
             continue;
           }
-        }
 
-        // Otherwise, perform retry
-        const ref_id = generateReferenceId();
-        const processTx = {
-          parent_ref_id: transaction.ref_id,
-          child_ref_id: ref_id,
-        };
+          // Skip retry if any retry history already has a success
+          if (transaction.retry_history?.length) {
+            const successRetry = transaction.retry_history.find(
+              (x) => x.transaction?.status === TransactionStatus.SUCCESS.toString()
+            );
+            if (successRetry) {
+              const message = `Order ${order.order_id}: Retry transaction ref ${successRetry.transaction.ref_id} is already SUCCESS`;
+              console.log(message);
+              failed.push(message);
+              continue;
+            }
+          }
 
-        try {
-          await this.processTransaction(
-            ref_id,
-            transaction.buyer_sku_code,
-            transaction.customer_no,
-            order.order_id,
-            order,
-            true,
-            processTx
-          );
+          // Otherwise, perform retry
+          const ref_id = generateReferenceId();
+          const processTx = {
+            parent_ref_id: transaction.ref_id,
+            child_ref_id: ref_id,
+            order_id: order.order_id,
+          };
 
-          success.push(processTx);
-        } catch (error) {
-          const message = `Failed to process transaction ref: ${transaction.ref_id} — ${error.message}`;
-          console.error(message);
-          failed.push(message);
+          try {
+            await this.processTransaction(
+              ref_id,
+              transaction.buyer_sku_code,
+              transaction.customer_no,
+              order.order_id,
+              order,
+              true,
+              processTx
+            );
+
+            success.push(processTx);
+          } catch (error) {
+            const message = `Order ${order.order_id}: Failed to process transaction ref ${transaction.ref_id} — ${error.message}`;
+            console.error(message);
+            failed.push(message);
+          }
         }
       }
 
-      // If all failed, return error
       if (success.length === 0) {
         throw new HttpException("All retry attempts failed", HttpStatus.INTERNAL_SERVER_ERROR);
       }
@@ -460,6 +460,7 @@ export class TransactionService {
       );
     }
   }
+
 
 
   async requestTransactionBypass(transactionData: RetryItemkuTransaction) {

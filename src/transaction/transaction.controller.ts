@@ -60,7 +60,7 @@ export class TransactionController {
   @UserRoles([Roles.SuperAdmin])
   @Post('/retry')
   async createPaymentTransactionRequest(@Body() body: any) {
-    return this.transactionService.retryItemkuTransaction(Number(body.order_id));
+    return this.transactionService.retryItemkuTransaction(body.order_id);
   }
 
   @UserRoles([Roles.Admin, Roles.SuperAdmin])
