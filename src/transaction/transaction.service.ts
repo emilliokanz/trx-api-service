@@ -403,10 +403,18 @@ export class TransactionService {
           const requiredInformation: any = JSON.parse(jsonString);
 
           try {
-            await this.processFromItemkuOrder(order, requiredInformation.required_information)
+            const ref_ids = await this.processFromItemkuOrder(order, requiredInformation.required_information)
             const message = `Order ${order.order_id}: has no supplier transaction, success creating new`;
             console.log(message);
-            success.push(message);
+
+            const successMessage = {
+              parent_ref_id: ref_ids?.join(','),
+              child_ref_id: null,
+              order_id: order.order_id,
+              message: message
+            }
+         
+            success.push(successMessage);
 
           } catch (e: any) {
             const message = `Order ${order.order_id}: failed making new transaction`;
@@ -458,6 +466,7 @@ export class TransactionService {
             parent_ref_id: transaction.ref_id,
             child_ref_id: ref_id,
             order_id: order.order_id,
+            message: null
           };
 
           try {
@@ -931,12 +940,15 @@ export class TransactionService {
       this.logger.error(`failed getting product ${orderData.product_name}, not found`)
       return null
     }
+    const ref_ids: any[] = []
 
     // Loop transaction based on quantity ammount
     for (let i = 0; i < orderData.quantity; i++) {
       const ref_id = generateReferenceId();
       const processTx = await this.processTransaction(ref_id, product.buyer_sku_code, customer_no ?? '', orderData.order_id, orderData);
-    }
+      ref_ids.push(ref_id)
+    }  
+    return ref_ids  
   }
 
   async createFailedTransactionHistory(ref_id: string, buyer_sku_code: string, customer_no: string, order_id: number, itemkuOrder: ItemkuOrder) {
