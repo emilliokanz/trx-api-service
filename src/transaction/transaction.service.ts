@@ -387,6 +387,7 @@ export class TransactionService {
         }
       });
 
+
       if (findOrders.length === 0) {
         throw new HttpException("No orders found", HttpStatus.BAD_REQUEST);
       }
@@ -395,10 +396,35 @@ export class TransactionService {
       const failed: any[] = [];
 
       for (const order of findOrders) {
+        if (order.transactionHistory.length == 0) {
+          const jsonString = JSON.stringify({
+            required_information: order.required_information
+          });
+          const requiredInformation: any = JSON.parse(jsonString);
+
+          try {
+            await this.processFromItemkuOrder(order, requiredInformation.required_information)
+            const message = `Order ${order.order_id}: has no supplier transaction, success creating new`;
+            console.log(message);
+            success.push(message);
+
+          } catch (e: any) {
+            const message = `Order ${order.order_id}: failed making new transaction`;
+            console.log(message);
+            failed.push(message);
+          }
+        }
+
         for (const transaction of order.transactionHistory) {
           // Skip retry if main transaction already successful
           if (transaction.status === TransactionStatus.SUCCESS.toString()) {
             const message = `Order ${order.order_id}: Transaction ref ${transaction.ref_id} is already SUCCESS`;
+            console.log(message);
+            failed.push(message);
+            continue;
+          }
+          if (transaction.status === TransactionStatus.PENDING.toString()) {
+            const message = `Order ${order.order_id}: Transaction ref ${transaction.ref_id} is currently PENDING`;
             console.log(message);
             failed.push(message);
             continue;
@@ -409,8 +435,17 @@ export class TransactionService {
             const successRetry = transaction.retry_history.find(
               (x) => x.transaction?.status === TransactionStatus.SUCCESS.toString()
             );
+            const pendingRetry = transaction.retry_history.find(
+              (x) => x.transaction?.status === TransactionStatus.PENDING.toString()
+            );
             if (successRetry) {
               const message = `Order ${order.order_id}: Retry transaction ref ${successRetry.transaction.ref_id} is already SUCCESS`;
+              console.log(message);
+              failed.push(message);
+              continue;
+            }
+            if (pendingRetry) {
+              const message = `Order ${order.order_id}: Retry transaction ref ${pendingRetry.transaction.ref_id} is currently PENDING`;
               console.log(message);
               failed.push(message);
               continue;
@@ -443,10 +478,6 @@ export class TransactionService {
             failed.push(message);
           }
         }
-      }
-
-      if (success.length === 0) {
-        throw new HttpException("All retry attempts failed", HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       const data = { success, failed };
@@ -817,8 +848,6 @@ export class TransactionService {
   }
 
   async processUpdateItemkuOrder(orderData: ItemkuOrder) {
-    let customer_no: string | null = ''
-
     const payload = {
       order_id: orderData.order_id,
       action: "DELIVER",
@@ -842,18 +871,6 @@ export class TransactionService {
 
       const jsonString = orderData.required_information?.toString().replace(/(\w+):/g, '"$1":');
       const requiredInformation = JSON.parse(`{ "required_information": ${jsonString} }`);
-
-
-      if (orderData.game_name === "Mobile Legends") {
-        this.logger.debug('getting ml player id history')
-        customer_no = getMlPlayerId(requiredInformation)
-      }
-
-      if (orderData.game_name === "Garena Free Fire" || orderData.game_name === "Garena Free Fire MAX") {
-        this.logger.debug(`getting ${orderData.game_name} ml player id history`)
-        customer_no = getGarenaPlayerId(requiredInformation)
-      }
-
 
       const mapOrderData = {
         order_id: orderData.order_id,
@@ -888,22 +905,37 @@ export class TransactionService {
 
       this.logger.debug('processing transaction')
 
-      const product = await this.getProductByItemKu(orderData)
-
-      if (!product) {
-        const ref_id = generateReferenceId();
-        await this.createFailedTransactionHistory(ref_id, '', customer_no ?? '', orderData.order_id, orderData)
-        return null
-      }
-
-      // Loop transaction based on quantity ammount
-      for (let i = 0; i < orderData.quantity; i++) {
-        const ref_id = generateReferenceId();
-        await this.processTransaction(ref_id, product.buyer_sku_code, customer_no ?? '', orderData.order_id, orderData);
-      }
+      await this.processFromItemkuOrder(orderData, requiredInformation)
 
     } catch (e: any) {
       this.logger.debug(e.message)
+    }
+  }
+
+  async processFromItemkuOrder(orderData: ItemkuOrder, requiredInformation: string) {
+    const product = await this.getProductByItemKu(orderData)
+    let customer_no: string | null = ''
+    if (orderData.game_name === "Mobile Legends") {
+      this.logger.debug('getting ml player id history')
+      customer_no = getMlPlayerId(requiredInformation)
+    }
+
+    if (orderData.game_name === "Garena Free Fire" || orderData.game_name === "Garena Free Fire MAX") {
+      this.logger.debug(`getting ${orderData.game_name} ml player id history`)
+      customer_no = getGarenaPlayerId(requiredInformation)
+    }
+
+    if (!product) {
+      const ref_id = generateReferenceId();
+      await this.createFailedTransactionHistory(ref_id, '', customer_no ?? '', orderData.order_id, orderData)
+      this.logger.error(`failed getting product ${orderData.product_name}, not found`)
+      return null
+    }
+
+    // Loop transaction based on quantity ammount
+    for (let i = 0; i < orderData.quantity; i++) {
+      const ref_id = generateReferenceId();
+      const processTx = await this.processTransaction(ref_id, product.buyer_sku_code, customer_no ?? '', orderData.order_id, orderData);
     }
   }
 
