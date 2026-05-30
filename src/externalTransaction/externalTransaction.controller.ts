@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, Post, Req, UseGuards, UsePipes, ValidationPipe } from "@nestjs/common";
 import { ExternalTransactionService } from "./externalTransaction.service";
 import { ExternalTxRequestDto } from "./dto/extTxRequest.dto";
+import { TopUpRequestDto } from "./dto/topUpRequest.dto";
 import { ApiResponseDto } from "src/dto/apiResponse.dto";
 import { errorMap } from "src/lib/errorCodes";
 import { Validate } from "class-validator";
@@ -67,6 +68,15 @@ export class ExternalTransactionController {
     @HttpCode(200)
     async getPaymentTxStatus(@Body() payload: { ref_id: string }) {
         return await this.extTrxService.getPaymentTransactionStatus(payload.ref_id)
+    }
+
+    @UseGuards(AuthGuard)
+    @UserRoles([Roles.SuperAdmin, Roles.Admin])
+    @Post('/topup')
+    @HttpCode(200)
+    @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+    async topUp(@Body() payload: TopUpRequestDto) {
+        return await this.extTrxService.topUpTransaction(payload)
     }
 
     @UseGuards(AuthGuard)

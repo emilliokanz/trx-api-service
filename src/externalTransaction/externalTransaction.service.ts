@@ -533,6 +533,95 @@ export class ExternalTransactionService {
     }
   }
 
+  async topUpTransaction(data: {
+    buyer_sku_code: string;
+    customer_no: string;
+    testing?: boolean;
+    allow_dot?: boolean;
+    max_price?: number;
+  }) {
+    const { buyer_sku_code, customer_no, testing, allow_dot, max_price } = data;
+
+    const username = process.env.DIGI_USERNAME ?? '';
+    const apiKey = process.env.DIGI_API_KEY ?? '';
+    const ref_id = generateReferenceId();
+    const sign = generateSignature(username, apiKey, ref_id);
+
+    const requestBody: Record<string, any> = {
+      username,
+      buyer_sku_code,
+      customer_no: customer_no.toString(),
+      ref_id,
+      sign,
+    };
+
+    if (testing !== undefined) requestBody.testing = testing;
+    if (allow_dot !== undefined) requestBody.allow_dot = allow_dot;
+    if (max_price !== undefined) requestBody.max_price = max_price;
+
+    await this.prisma.externalTransactionHistory.create({
+      data: {
+        ref_id,
+        username,
+        buyer_sku_code,
+        customer_no: customer_no.toString(),
+        sign,
+        rc: '',
+        sn: '',
+        status: TransactionStatus.PENDING,
+      },
+    });
+
+    try {
+      const response = await this.httpAgentPost(
+        requestBody,
+        'https://api.digiflazz.com/v1/transaction',
+        'DIGIFLAZZ',
+        null,
+      );
+
+      const transaction = response.data?.data;
+      if (!transaction) {
+        throw new Error('No transaction data in response');
+      }
+
+      const successValues = [0, '0', 'Sukses', 'Successful', 'Success'];
+      const pendingValues = ['Pending'];
+      const statusRaw = transaction.status;
+      const status = successValues.includes(statusRaw)
+        ? TransactionStatus.SUCCESS
+        : pendingValues.includes(statusRaw)
+          ? TransactionStatus.PENDING
+          : TransactionStatus.FAILED;
+
+      const price = Number(transaction.price) || 0;
+
+      const updated = await this.prisma.externalTransactionHistory.update({
+        where: { ref_id },
+        data: {
+          status,
+          item_price: price,
+          rc: transaction.rc ?? '',
+          sn: transaction.sn ?? '',
+        },
+      });
+
+      return new ApiResponseDto('success', updated, '0000');
+    } catch (err: any) {
+      console.error(`[DIGIFLAZZ][TOPUP] Transaction error, ref_id: ${ref_id}`, err.response?.data ?? err);
+
+      await this.prisma.externalTransactionHistory.update({
+        where: { ref_id },
+        data: { status: TransactionStatus.FAILED },
+      });
+
+      throw new HttpException(
+        new ApiResponseDto(errorMap[1007], null, '1007'),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   async getPaymentTransactionStatus(ref_id: string) {
     const transaction = await this.prisma.externalTransactionHistory.findFirst({
       where: {

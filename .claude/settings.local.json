@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($u = \"beyuziDVABxo\"; $k = \"50938246-642e-5e7e-8ee2-33cafc35294b\"; $sign = -join \\([System.Security.Cryptography.MD5]::Create\\(\\).ComputeHash\\([Text.Encoding]::UTF8.GetBytes\\($u + $k + \"depo\"\\)\\) | ForEach-Object { $_.ToString\\(\"x2\"\\) }\\); $sign)"
+    ]
+  }
+}
