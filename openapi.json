@@ -1,0 +1,3902 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Returns a static greeting.",
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "example": "Hello World!"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Service liveness check",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/status": {
+      "post": {
+        "description": "Re-reads the supplier status for one reference id. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "TransactionController_getPaymentTransactionStatus",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemkuRefIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Status of a payment transaction",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/update-all-status": {
+      "post": {
+        "description": "Walks all non-final transactions and refreshes them from the supplier. No body. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "TransactionController_updateAllStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Re-sync every pending transaction",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/{id}": {
+      "get": {
+        "description": "Returns the state of the BullMQ job that carries this transaction.",
+        "operationId": "TransactionController_getJobTransactionStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Queue job id",
+            "schema": {
+              "example": "1421",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Queue job status",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/retry": {
+      "post": {
+        "description": "SuperAdmin only. Re-queues the given Itemku order ids.",
+        "operationId": "TransactionController_createPaymentTransactionRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryItemkuOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Retry failed Itemku orders",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/compare": {
+      "post": {
+        "description": "Resolves the current selling price of a SKU for a customer and checks it against the supplied balance. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "TransactionController_compareCurrentPrice",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparePriceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Compare current price against a balance",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/get-one": {
+      "post": {
+        "description": "Looks up one transaction history record by reference id.",
+        "operationId": "TransactionController_getTxHistory",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemkuRefIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Single transaction history entry",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/get": {
+      "post": {
+        "description": "Paginated history. Note that `status` and `source` are not combined -- when `source` is present it replaces the `status` filter.",
+        "operationId": "TransactionController_getTxHistories",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetTxHistoriesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Transaction history list",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/get-itemku-history": {
+      "post": {
+        "description": "Paginated Itemku order list. Text filters match partially and case insensitively; the date range applies only when both `dateStart` and `dateEnd` are given.",
+        "operationId": "TransactionController_getItemkuTxHistories",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetTransaction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Itemku order history",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/mock-order-itemku": {
+      "post": {
+        "description": "SuperAdmin only. Feeds a synthetic Itemku order through the same path as `/update-order-itemku`. Intended for testing.",
+        "operationId": "TransactionController_mockItemkuOrder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemkuOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Simulate an Itemku order webhook",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/update-order-itemku": {
+      "post": {
+        "description": "Stores the order and moves its transaction forward when the status changed.",
+        "operationId": "TransactionController_updateItemkuOrder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemkuOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upsert an Itemku order",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/bulk-update-tx": {
+      "post": {
+        "description": "Refreshes every tracked Itemku order in one pass. No body.",
+        "operationId": "TransactionController_bulkUpdatetx",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Bulk re-sync Itemku orders",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/manual-update-tx": {
+      "post": {
+        "description": "Refreshes the given reference ids against the supplier.",
+        "operationId": "TransactionController_manualUpdatetx",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualUpdateTxDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Manually re-sync transactions",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/get-digiflazz": {
+      "post": {
+        "description": "SuperAdmin only. Returns the raw supplier price list. No body.",
+        "operationId": "TransactionController_getDigiflazzProductPrice",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Fetch the Digiflazz price list",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/get-itemku": {
+      "post": {
+        "description": "SuperAdmin only. Returns the raw Itemku price list. No body.",
+        "operationId": "TransactionController_getItemkuProductPrice",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Fetch the Itemku price list",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/update-tx-history": {
+      "post": {
+        "description": "Rewrites the SKU / destination of an existing transaction, matched on `ref_id`.",
+        "operationId": "TransactionController_updateTransactionHistoryDetail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTransactionRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a transaction history entry",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/itemku/transactions/itemku/product/upload": {
+      "post": {
+        "description": "Multipart upload of a single `.xls`/`.xlsx` file (10 MB max). The sheet is parsed and the rows are imported. Rejects any other extension with a 400.",
+        "operationId": "TransactionController_uploadFile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Excel file (.xls or .xlsx)"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Import Itemku products from Excel",
+        "tags": [
+          "Itemku Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/request-web": {
+      "post": {
+        "description": "Queues one transaction per entry in `customer_no` and returns the batch id. Requires BOTH a JWT and an `x-sign` header holding the HMAC-SHA256 hex digest of the request body. `username` is taken from the JWT, not from the body. Answers 200 with `errorCode` `4011` (missing signature) or `4012` (bad signature).",
+        "operationId": "ExternalTransactionController_requestTransactionWeb",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalTxRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "x-sign": []
+          },
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Submit a transaction request (web session)",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/admin-balance": {
+      "post": {
+        "description": "Reads the balance of the account identified by the JWT.",
+        "operationId": "ExternalTransactionController_getAdminBalance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Balance of the calling admin",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/ext/admin-balance": {
+      "post": {
+        "description": "Machine-to-machine variant of `/admin-balance`: authenticate with the `x-username` + `x-sign` header pair instead of a JWT.",
+        "operationId": "ExternalTransactionController_getAdminBalanceApi",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "x-sign": []
+          },
+          {
+            "x-username": []
+          }
+        ],
+        "summary": "Balance of the calling admin (API key)",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/status": {
+      "post": {
+        "description": "Re-reads the transaction status from the supplier by reference id.",
+        "operationId": "ExternalTransactionController_getPaymentTxStatus",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Status of a payment transaction",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/topup": {
+      "post": {
+        "description": "Sends a single top-up straight to the supplier, bypassing the batch queue. Unknown body properties are stripped by the validation pipe.",
+        "operationId": "ExternalTransactionController_topUp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopUpRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Direct supplier top-up",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/history": {
+      "post": {
+        "description": "Paginated list of transaction batches visible to the caller. Every filter is optional.",
+        "operationId": "ExternalTransactionController_getTxHistory",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxHistoryQueryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Transaction history grouped by batch",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/history-detail": {
+      "post": {
+        "description": "Returns every transaction belonging to the given `batch_id`.",
+        "operationId": "ExternalTransactionController_getTxHistoryDetail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Transactions inside one batch",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/transaction-detail-list": {
+      "post": {
+        "description": "Same filters as `/history`, but returns individual transactions instead of batches.",
+        "operationId": "ExternalTransactionController_getTxHistoryDetailByBatchId",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxHistoryQueryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Flat, paginated transaction list",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/ext/request": {
+      "post": {
+        "description": "Machine-to-machine variant of `/request-web`. Authenticate with `x-username` + `x-sign`; the signature is verified against the caller API key over the raw body.",
+        "operationId": "ExternalTransactionController_requestTransaction",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalTxRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "x-sign": []
+          },
+          {
+            "x-username": []
+          }
+        ],
+        "summary": "Submit a transaction request (API key)",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/ext/history-detail": {
+      "post": {
+        "description": "Machine-to-machine variant of `/history-detail`.",
+        "operationId": "ExternalTransactionController_getTxHistoryDetailApi",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "x-sign": []
+          },
+          {
+            "x-username": []
+          }
+        ],
+        "summary": "Transactions inside one batch (API key)",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/ext/tx-detail": {
+      "post": {
+        "description": "Looks up one transaction by its reference id.",
+        "operationId": "ExternalTransactionController_getTxDetail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Single transaction detail",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/sign": {
+      "post": {
+        "description": "Helper endpoint: returns the HMAC-SHA256 hex digest of the posted JSON body, signed with the API key of the user named in the `x-username` header. Use the result as the `x-sign` header of the real request.",
+        "operationId": "ExternalTransactionController_signPayload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "The exact JSON body that will be sent to the signed endpoint.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "example": {
+                  "code": "ML5",
+                  "customer_no": [
+                    "12345678(1234)"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "example": "3b8c1f9e..."
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "x-username": []
+          },
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Sign a payload with a user API key",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/api/v1/tx/sign-sup": {
+      "post": {
+        "description": "Same as `/sign`, but signed with `PAYLOAD_SECRET`. This is the signature expected by `/request-web` and by the external top-up endpoints.",
+        "operationId": "ExternalTransactionController_signPayloadSup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "The exact JSON body that will be sent to the signed endpoint.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "example": {
+                  "amount": 100000,
+                  "toAccount": "1234567890"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "example": "3b8c1f9e..."
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Sign a payload with the service secret",
+        "tags": [
+          "External Transaction"
+        ]
+      }
+    },
+    "/customer": {
+      "post": {
+        "description": "Creates a customer record with a zero balance.",
+        "operationId": "CustomerController_createCustomer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create an internal customer",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customer/update": {
+      "post": {
+        "description": "Overwrites the balance of the customer named in the body.",
+        "operationId": "CustomerController_updateCustomer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerBalanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Set a customer balance",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customer/api-key": {
+      "post": {
+        "description": "Returns a fresh API key for the customer. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "CustomerController_reqApiKey",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerApiKeyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Generate an internal customer API key",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customer/get-username": {
+      "post": {
+        "description": "Returns the customer record, including its current balance.",
+        "operationId": "CustomerController_getUserByUsername",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetCustomerByUsernameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Look up a customer by username",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customer/get": {
+      "post": {
+        "description": "Paginated customer list.",
+        "operationId": "CustomerController_getUsers",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetCustomersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List customers",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/owner": {
+      "post": {
+        "description": "Creates an owner with a zero balance.",
+        "operationId": "OwnerController_createOwner",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOwnerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create an owner",
+        "tags": [
+          "Owner"
+        ]
+      }
+    },
+    "/owner/get": {
+      "post": {
+        "description": "Paginated owner list.",
+        "operationId": "OwnerController_getOwner",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetOwnersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List owners",
+        "tags": [
+          "Owner"
+        ]
+      }
+    },
+    "/owner/get-one": {
+      "post": {
+        "description": "Looks up one owner by id.",
+        "operationId": "OwnerController_getOwnerById",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetOwnerByIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Single owner",
+        "tags": [
+          "Owner"
+        ]
+      }
+    },
+    "/owner/update": {
+      "post": {
+        "description": "Overwrites the balance of the owner identified by `id`.",
+        "operationId": "OwnerController_updateOwnerBalance",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOwnerBalanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Set an owner balance",
+        "tags": [
+          "Owner"
+        ]
+      }
+    },
+    "/api/v1/itemku/product": {
+      "post": {
+        "description": "Registers a product together with its selling price. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "ProductController_createProduct",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an Itemku product price",
+        "tags": [
+          "Itemku Product"
+        ]
+      }
+    },
+    "/api/v1/itemku/product/update": {
+      "post": {
+        "description": "Updates the product identified by `id`. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "ProductController_updateProduct",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update an Itemku product price",
+        "tags": [
+          "Itemku Product"
+        ]
+      }
+    },
+    "/api/v1/itemku/product/get": {
+      "post": {
+        "description": "Paginated product list. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "ProductController_getProducts",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetProductsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List Itemku product prices",
+        "tags": [
+          "Itemku Product"
+        ]
+      }
+    },
+    "/api/v1/itemku/product/get-one": {
+      "post": {
+        "description": "Looks up one product by id. NOTE: this route carries @UserRoles but no @UseGuards(AuthGuard), so no token is checked today and the role restriction is not enforced.",
+        "operationId": "ProductController_getProductById",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetProductByIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Single Itemku product price",
+        "tags": [
+          "Itemku Product"
+        ]
+      }
+    },
+    "/api/v1/product/create": {
+      "post": {
+        "description": "SuperAdmin only. Accepts an array; each item may reference one or more supplier products through `products`, which is how the sell price is composed.",
+        "operationId": "ExternalProductController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreateExtProduct"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create external products",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/create-supplier": {
+      "post": {
+        "description": "SuperAdmin only. Every element is validated individually; a 400 with `errorCode` `4001` lists the offending array indexes and their validation messages.",
+        "operationId": "ExternalProductController_createSupplierProduct",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreateSupplierProduct"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create supplier products",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/update": {
+      "post": {
+        "description": "SuperAdmin only. The product is matched on `item_id`.",
+        "operationId": "ExternalProductController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExtProduct"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update an external product",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/get-list": {
+      "post": {
+        "description": "Paginated catalogue. The price returned depends on the caller role: admins see `admin_price`, SuperAdmins additionally see the supplier composition.",
+        "operationId": "ExternalProductController_getAll",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetExtProductListDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List external products",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/create-customer": {
+      "post": {
+        "description": "Admin only. Assigns per-customer selling prices for products the admin owns. `4007` when the target user is not a customer of the caller.",
+        "operationId": "ExternalProductController_createCustomer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreateExtProductCustomer"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Set customer specific prices",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/update-customer": {
+      "post": {
+        "description": "Admin only.",
+        "operationId": "ExternalProductController_updateCustomer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExtProductCustomer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a customer specific price",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/delete-customer": {
+      "post": {
+        "description": "Admin only.",
+        "operationId": "ExternalProductController_deleteCustomer",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExtProductCustomer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Remove a customer specific price",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/update-supplier": {
+      "post": {
+        "description": "SuperAdmin only. Pulls the current Digiflazz price list and syncs it into supplier products. Takes no body.",
+        "operationId": "ExternalProductController_updateDigi",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Refresh supplier prices from Digiflazz",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/product/get-product": {
+      "post": {
+        "description": "SuperAdmin only. Returns the stored supplier catalogue. Takes no body.",
+        "operationId": "ExternalProductController_getProducts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List supplier products",
+        "tags": [
+          "External Product"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Returns `data.access_token`. Send that token back in the `authorization` header exactly as received -- the guard verifies the raw header value, so do NOT add a \"Bearer \" prefix. Wrong credentials answer 200 with `errorCode` `1000`.",
+        "operationId": "ExternalAuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Log in and obtain a JWT",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/detail": {
+      "post": {
+        "description": "Decodes the JWT in the `authorization` header and returns its claims.",
+        "operationId": "ExternalAuthController_userDetail",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Current user detail",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "description": "Creates a `Customer` user. When `referal_code` is supplied the customer is also attached to the owning admin. Duplicate usernames answer with `errorCode` `1003`.",
+        "operationId": "ExternalAuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Register a customer account",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/admin/api-key": {
+      "post": {
+        "description": "Returns a freshly generated API key in `data.apiKey`. It is only shown once -- the stored copy is encrypted. Use it to sign request bodies for the `x-sign` header.",
+        "operationId": "ExternalAuthController_reqApiKeyAdmin",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Generate an API key for the calling admin",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/api-key": {
+      "post": {
+        "description": "Same as `/admin/api-key`, but the target user is named in the body.",
+        "operationId": "ExternalAuthController_reqApiKey",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateApiKeyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Generate an API key for another user (SuperAdmin)",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/generate-referal": {
+      "post": {
+        "description": "Admin only. Creates the referral code customers use at registration.",
+        "operationId": "ExternalAuthController_reqReferal",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateReferalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Generate a referral code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/check-referal": {
+      "post": {
+        "description": "Public. Resolves a referral code to its owning admin. `1005` when unknown.",
+        "operationId": "ExternalAuthController_checkReferal",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckReferalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check a referral code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/assign-admin": {
+      "post": {
+        "description": "Customer only. `1006` when the customer is already assigned.",
+        "operationId": "ExternalAuthController_assignToAdmin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Attach the current customer to an admin",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/customer-list": {
+      "post": {
+        "description": "Paginated. `name` narrows the result set.",
+        "operationId": "ExternalAuthController_getAdminCustomers",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCustomerListDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List the customers of the calling admin",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/balanceHistory/get-all": {
+      "post": {
+        "description": "Paginated list of customer balance history records. NOTE: this controller has no guard attached, so the route is currently unauthenticated.",
+        "operationId": "BalanceHistoryController_findAll",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaginationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List balance mutations",
+        "tags": [
+          "Balance History"
+        ]
+      }
+    },
+    "/balanceHistory/get": {
+      "post": {
+        "description": "Looks up one balance history record by id. NOTE: this controller has no guard attached, so the route is currently unauthenticated.",
+        "operationId": "BalanceHistoryController_findById",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBalanceHistoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Single balance mutation",
+        "tags": [
+          "Balance History"
+        ]
+      }
+    },
+    "/api/v1/external-topup/bank-account": {
+      "post": {
+        "description": "SuperAdmin only. Adds an account customers can transfer to. Unknown body properties are stripped.",
+        "operationId": "ExternalTopupController_addBankAccount",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBankAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Register a destination bank account",
+        "tags": [
+          "External Topup"
+        ]
+      }
+    },
+    "/api/v1/external-topup/bank-account-get": {
+      "post": {
+        "description": "Returns the accounts available for top-up transfers. Takes no body.",
+        "operationId": "ExternalTopupController_getBankAccount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List destination bank accounts",
+        "tags": [
+          "External Topup"
+        ]
+      }
+    },
+    "/api/v1/external-topup/create-topup": {
+      "post": {
+        "description": "Admin only. Requires an `x-sign` header holding the HMAC-SHA256 hex digest of the request body (see `POST /api/v1/tx/sign-sup`). Answers with `errorCode` `4011` when the header is missing and `4012` when the signature does not match. The request lands in `PENDING` until a SuperAdmin settles it.",
+        "operationId": "ExternalTopupController_createTopupRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTopupRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          },
+          {
+            "x-sign": []
+          }
+        ],
+        "summary": "Submit a top-up request",
+        "tags": [
+          "External Topup"
+        ]
+      }
+    },
+    "/api/v1/external-topup/update-topup": {
+      "post": {
+        "description": "SuperAdmin only. Approves or rejects a pending request; `SUCCESS` credits the requester's balance by `amount`. Also requires the `x-sign` header over the body.",
+        "operationId": "ExternalTopupController_updateTopupRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTopupRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          },
+          {
+            "x-sign": []
+          }
+        ],
+        "summary": "Settle a top-up request",
+        "tags": [
+          "External Topup"
+        ]
+      }
+    },
+    "/api/v1/external-topup/transactions": {
+      "post": {
+        "description": "Paginated and filterable. Admins only see their own requests; SuperAdmins see all of them.",
+        "operationId": "ExternalTopupController_getTransactionList",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetTransactionListDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List top-up transactions",
+        "tags": [
+          "External Topup"
+        ]
+      }
+    },
+    "/api/v1/external-topup/transaction": {
+      "post": {
+        "description": "Looks up one top-up request by id, scoped to what the caller may see.",
+        "operationId": "ExternalTopupController_getTransactionById",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetTopupTransactionByIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Single top-up transaction",
+        "tags": [
+          "External Topup"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "TRX API Service",
+    "description": "Transaction / top-up API service.\n\n## Authentication\n\nCall `POST /api/v1/auth/login` to obtain a JWT, then send it in the\n`authorization` header **without** the `Bearer ` prefix -- the guard verifies\nthe header value verbatim.\n\nMachine-to-machine endpoints (those under `/api/v1/tx/ext/...`) accept the\n`x-username` + `x-sign` header pair instead of a JWT. `x-sign` is the\nHMAC-SHA256 hex digest of the exact JSON request body signed with the\ncaller's API key (see `POST /api/v1/auth/api-key`).\n\nA few endpoints (`/api/v1/tx/request-web`, `/api/v1/external-topup/create-topup`,\n`/api/v1/external-topup/update-topup`) require BOTH a JWT and an `x-sign`\nheader over the body.\n\n## Response envelope\n\nMost endpoints answer with `{ message, data, errorCode }`. An `errorCode` of\n`\"0000\"` means success; any other code maps to an entry in\n`src/lib/errorCodes.ts` (e.g. `1000` wrong credential, `1002` insufficient\nbalance, `4012` signature not verified).",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Login, registration, API keys and referral management"
+    },
+    {
+      "name": "External Transaction",
+      "description": "Transaction requests, balance and history"
+    },
+    {
+      "name": "External Product",
+      "description": "Product catalogue for external consumers"
+    },
+    {
+      "name": "External Topup",
+      "description": "Bank accounts and balance top-up requests"
+    },
+    {
+      "name": "Itemku Transaction",
+      "description": "Itemku order / transaction operations"
+    },
+    {
+      "name": "Itemku Product",
+      "description": "Itemku product catalogue"
+    },
+    {
+      "name": "Customer",
+      "description": "Internal customer management"
+    },
+    {
+      "name": "Owner",
+      "description": "Owner management"
+    },
+    {
+      "name": "Balance History",
+      "description": "Customer balance mutation history"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "authorization",
+        "description": "Raw JWT returned by POST /api/v1/auth/login. Do NOT prefix it with \"Bearer \"."
+      },
+      "x-username": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-username",
+        "description": "Username of the API consumer. Used together with x-sign."
+      },
+      "x-sign": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-sign",
+        "description": "HMAC-SHA256 hex signature of the JSON request body."
+      }
+    },
+    "schemas": {
+      "ItemkuRefIdDto": {
+        "type": "object",
+        "properties": {
+          "ref_id": {
+            "type": "string",
+            "example": "TRX-20250901-0001",
+            "description": "Transaction reference id"
+          }
+        },
+        "required": [
+          "ref_id"
+        ]
+      },
+      "ApiResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "success",
+            "description": "Human readable result message"
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "description": "Endpoint specific payload. `null` when the call failed."
+          },
+          "errorCode": {
+            "type": "string",
+            "example": "0000",
+            "description": "`0000` on success, otherwise a code from src/lib/errorCodes.ts"
+          }
+        },
+        "required": [
+          "message",
+          "data"
+        ]
+      },
+      "RetryItemkuOrderDto": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "example": [
+              90210,
+              90211
+            ],
+            "description": "Itemku order ids to re-run",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "order_id"
+        ]
+      },
+      "ComparePriceDto": {
+        "type": "object",
+        "properties": {
+          "buyer_sku_code": {
+            "type": "string",
+            "example": "ml86",
+            "description": "Supplier SKU code to price"
+          },
+          "userBalance": {
+            "type": "number",
+            "example": 500000,
+            "description": "Balance to check the price against"
+          },
+          "username": {
+            "type": "string",
+            "example": "johndoe",
+            "description": "Customer the price applies to"
+          }
+        },
+        "required": [
+          "buyer_sku_code",
+          "userBalance",
+          "username"
+        ]
+      },
+      "GetTxHistoriesDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "take": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          },
+          "status": {
+            "type": "string",
+            "example": "SUCCESS",
+            "description": "Filter by transaction status"
+          },
+          "source": {
+            "type": "string",
+            "example": "itemku",
+            "description": "Filter by origin. Overrides `status` -- only one filter is applied."
+          }
+        }
+      },
+      "GetTransaction": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "size": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          },
+          "sort": {
+            "type": "string",
+            "example": "desc",
+            "description": "Sort direction on the update timestamp"
+          },
+          "dateStart": {
+            "type": "string",
+            "example": "2025-09-01",
+            "description": "Inclusive lower bound. Applied only together with dateEnd."
+          },
+          "dateEnd": {
+            "type": "string",
+            "example": "2025-09-30",
+            "description": "Inclusive upper bound. Applied only together with dateStart."
+          },
+          "status": {
+            "type": "string",
+            "example": "SUCCESS",
+            "description": "Order status"
+          },
+          "deliveryStatus": {
+            "type": "string",
+            "example": "delivered",
+            "description": "Delivery status, matched case insensitively"
+          },
+          "gameName": {
+            "type": "string",
+            "example": "Mobile Legends",
+            "description": "Partial, case insensitive match"
+          },
+          "productName": {
+            "type": "string",
+            "example": "86 Diamonds",
+            "description": "Partial, case insensitive match"
+          },
+          "orderId": {
+            "type": "string",
+            "example": "90210",
+            "description": "Exact numeric order id"
+          },
+          "orderNumber": {
+            "type": "string",
+            "example": "INV-20250901-001",
+            "description": "Partial, case insensitive match"
+          },
+          "userInfo": {
+            "type": "string",
+            "example": "12345678(1234)",
+            "description": "Buyer / destination account info"
+          }
+        }
+      },
+      "ItemkuOrderDto": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "number",
+            "example": 90210,
+            "description": "Itemku order id (primary key)"
+          },
+          "order_number": {
+            "type": "string",
+            "example": "INV-20250901-001",
+            "description": "Itemku order number, unique"
+          },
+          "status": {
+            "type": "string",
+            "example": "SUCCESS",
+            "description": "Order status as reported by Itemku"
+          },
+          "price": {
+            "type": "number",
+            "example": 25000,
+            "description": "Unit price"
+          },
+          "quantity": {
+            "type": "number",
+            "example": 1
+          },
+          "order_income": {
+            "type": "number",
+            "example": 24000,
+            "description": "Net amount received for the order"
+          },
+          "product_id": {
+            "type": "number",
+            "example": 1234,
+            "description": "Itemku product id"
+          },
+          "product_name": {
+            "type": "string",
+            "example": "86 Diamonds"
+          },
+          "game_name": {
+            "type": "string",
+            "example": "Mobile Legends"
+          },
+          "required_information": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Buyer supplied fields required to fulfil the order",
+            "example": {
+              "user_id": "12345678",
+              "zone_id": "1234"
+            }
+          },
+          "delivery_info": {
+            "type": "object",
+            "example": "12345678(1234)",
+            "nullable": true
+          },
+          "delivery_info_field": {
+            "type": "object",
+            "example": "user_id",
+            "nullable": true
+          },
+          "using_delivery_info": {
+            "type": "number",
+            "example": 0,
+            "default": 0
+          },
+          "is_from_ads": {
+            "type": "boolean",
+            "example": false,
+            "default": false
+          }
+        },
+        "required": [
+          "order_id",
+          "order_number",
+          "status",
+          "price",
+          "quantity",
+          "order_income",
+          "product_id",
+          "product_name",
+          "game_name",
+          "required_information"
+        ]
+      },
+      "ManualUpdateTxDto": {
+        "type": "object",
+        "properties": {
+          "refIds": {
+            "example": [
+              "TRX-20250901-0001",
+              "TRX-20250901-0002"
+            ],
+            "description": "Reference ids to re-sync against the supplier",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "refIds"
+        ]
+      },
+      "UpdateTransactionRequestDto": {
+        "type": "object",
+        "properties": {
+          "buyer_sku_code": {
+            "type": "string",
+            "example": "ml86",
+            "description": "Supplier SKU code of the transaction"
+          },
+          "customer_no": {
+            "type": "string",
+            "example": "12345678(1234)",
+            "description": "Destination account"
+          },
+          "source": {
+            "type": "string",
+            "example": "itemku",
+            "description": "Origin of the transaction"
+          },
+          "ref_id": {
+            "type": "string",
+            "example": "TRX-20250901-0001",
+            "description": "Reference id of the transaction to update"
+          }
+        },
+        "required": [
+          "buyer_sku_code",
+          "customer_no",
+          "ref_id"
+        ]
+      },
+      "ExternalTxRequestDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe",
+            "description": "Owner of the transaction. On `/request-web` it is overwritten with the JWT subject, so the value sent there is ignored."
+          },
+          "code": {
+            "type": "string",
+            "example": "ML5",
+            "description": "Product code to purchase"
+          },
+          "customer_no": {
+            "example": [
+              "12345678(1234)",
+              "87654321(4321)"
+            ],
+            "description": "Destination account(s). One transaction is queued per entry.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "username",
+          "code",
+          "customer_no"
+        ]
+      },
+      "RefIdDto": {
+        "type": "object",
+        "properties": {
+          "ref_id": {
+            "type": "string",
+            "example": "TRX-20250901-0001",
+            "description": "Reference id of a single transaction"
+          }
+        },
+        "required": [
+          "ref_id"
+        ]
+      },
+      "TopUpRequestDto": {
+        "type": "object",
+        "properties": {
+          "buyer_sku_code": {
+            "type": "string",
+            "example": "xld10",
+            "description": "Supplier SKU code"
+          },
+          "customer_no": {
+            "type": "string",
+            "example": "087800001233",
+            "description": "Destination account / phone number"
+          },
+          "testing": {
+            "type": "boolean",
+            "default": false,
+            "description": "Run against the supplier sandbox"
+          },
+          "allow_dot": {
+            "type": "boolean",
+            "default": false,
+            "description": "Allow decimal amounts"
+          },
+          "max_price": {
+            "type": "number",
+            "example": 100000,
+            "description": "Reject the order above this price"
+          }
+        },
+        "required": [
+          "buyer_sku_code",
+          "customer_no"
+        ]
+      },
+      "TxHistoryQueryDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "size": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          },
+          "customer_no": {
+            "type": "string",
+            "example": "087800001233",
+            "description": "Filter by destination account"
+          },
+          "start_date": {
+            "type": "string",
+            "example": "2025-09-01",
+            "description": "Inclusive lower bound (YYYY-MM-DD)"
+          },
+          "end_date": {
+            "type": "string",
+            "example": "2025-09-30",
+            "description": "Inclusive upper bound (YYYY-MM-DD)"
+          },
+          "batch_id": {
+            "type": "string",
+            "description": "Filter by batch id"
+          },
+          "ref_id": {
+            "type": "string",
+            "description": "Filter by transaction reference id"
+          }
+        }
+      },
+      "BatchIdDto": {
+        "type": "object",
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "example": "7c1d2e3f-4a5b-6c7d-8e9f-0a1b2c3d4e5f",
+            "description": "Batch id returned when the transaction request was accepted"
+          }
+        },
+        "required": [
+          "batch_id"
+        ]
+      },
+      "CreateCustomerDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe",
+            "description": "Username of the customer to create"
+          }
+        },
+        "required": [
+          "username"
+        ]
+      },
+      "UpdateCustomerBalanceDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe"
+          },
+          "balance": {
+            "type": "number",
+            "example": 500000,
+            "description": "New balance value"
+          }
+        },
+        "required": [
+          "username",
+          "balance"
+        ]
+      },
+      "CustomerApiKeyDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe",
+            "description": "Customer to generate an API key for"
+          }
+        },
+        "required": [
+          "username"
+        ]
+      },
+      "GetCustomerByUsernameDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe"
+          }
+        },
+        "required": [
+          "username"
+        ]
+      },
+      "GetCustomersDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "take": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          }
+        }
+      },
+      "CreateOwnerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "PT Contoh Sejahtera",
+            "description": "Owner name"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "GetOwnersDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "take": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          }
+        }
+      },
+      "GetOwnerByIdDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "Owner id"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "UpdateOwnerBalanceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "Owner id"
+          },
+          "balance": {
+            "type": "number",
+            "example": 25000000,
+            "description": "New balance value"
+          }
+        },
+        "required": [
+          "id",
+          "balance"
+        ]
+      },
+      "CreateProductDto": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string",
+            "example": "MOBILE LEGENDS"
+          },
+          "category": {
+            "type": "string",
+            "example": "Games"
+          },
+          "price": {
+            "type": "number",
+            "example": 25000,
+            "description": "Selling price"
+          },
+          "buyer_sku_code": {
+            "type": "string",
+            "example": "ml86",
+            "description": "Supplier SKU code"
+          },
+          "product_name": {
+            "type": "string",
+            "example": "Mobile Legends 86 Diamonds"
+          }
+        },
+        "required": [
+          "brand",
+          "category",
+          "price",
+          "buyer_sku_code",
+          "product_name"
+        ]
+      },
+      "UpdateProductDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 7,
+            "description": "Id of the product price row to update"
+          },
+          "brand": {
+            "type": "string",
+            "example": "MOBILE LEGENDS"
+          },
+          "category": {
+            "type": "string",
+            "example": "Games"
+          },
+          "price": {
+            "type": "number",
+            "example": 25000,
+            "description": "Selling price"
+          },
+          "buyer_sku_code": {
+            "type": "string",
+            "example": "ml86",
+            "description": "Supplier SKU code"
+          },
+          "product_name": {
+            "type": "string",
+            "example": "Mobile Legends 86 Diamonds"
+          },
+          "actualPrice": {
+            "type": "number",
+            "example": 23000,
+            "description": "Supplier price, used for margin checks"
+          }
+        },
+        "required": [
+          "id",
+          "brand",
+          "category",
+          "price",
+          "buyer_sku_code",
+          "product_name",
+          "actualPrice"
+        ]
+      },
+      "GetProductsDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "take": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          }
+        }
+      },
+      "GetProductByIdDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 7,
+            "description": "Product price id"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ExtProductJunction": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "example": "ITM-001",
+            "description": "Parent external item id"
+          },
+          "product_id": {
+            "type": "number",
+            "example": 12,
+            "description": "Id of the supplier product to draw from"
+          },
+          "qty": {
+            "type": "number",
+            "example": 2,
+            "description": "How many units of the supplier product per order"
+          }
+        },
+        "required": [
+          "product_id",
+          "qty"
+        ]
+      },
+      "CreateExtProduct": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "example": "ITM-001",
+            "description": "External item id, unique per product"
+          },
+          "game_name": {
+            "type": "string",
+            "example": "Mobile Legends"
+          },
+          "item_name": {
+            "type": "string",
+            "example": "86 Diamonds"
+          },
+          "server_name": {
+            "type": "string",
+            "example": "Asia",
+            "description": "Server / region label"
+          },
+          "group_name": {
+            "type": "string",
+            "example": "Diamond",
+            "description": "Grouping label used in listings"
+          },
+          "stock": {
+            "type": "number",
+            "example": 100
+          },
+          "min_order": {
+            "type": "number",
+            "example": 1
+          },
+          "price": {
+            "type": "number",
+            "example": 25000,
+            "description": "Price shown to customers"
+          },
+          "admin_price": {
+            "type": "number",
+            "example": 23000,
+            "description": "Price charged to admins"
+          },
+          "products": {
+            "description": "Supplier products this item is composed of.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtProductJunction"
+            }
+          }
+        },
+        "required": [
+          "item_id",
+          "game_name",
+          "item_name",
+          "server_name",
+          "group_name",
+          "stock",
+          "min_order",
+          "price",
+          "admin_price",
+          "products"
+        ]
+      },
+      "CreateSupplierProduct": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Mobile Legends 86 Diamonds",
+            "description": "Supplier product name"
+          },
+          "category": {
+            "type": "string",
+            "example": "Games"
+          },
+          "brand": {
+            "type": "string",
+            "example": "MOBILE LEGENDS"
+          },
+          "type": {
+            "type": "string",
+            "example": "Umum",
+            "description": "Supplier product type"
+          },
+          "price": {
+            "type": "number",
+            "example": 23000,
+            "description": "Current supplier price"
+          },
+          "code": {
+            "type": "string",
+            "example": "ml86",
+            "description": "Supplier SKU code (buyer_sku_code)"
+          },
+          "status": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the product is sellable"
+          },
+          "unlimited_stock": {
+            "type": "boolean",
+            "example": false
+          },
+          "stock": {
+            "type": "number",
+            "example": 100,
+            "description": "Ignored when unlimited_stock is true"
+          },
+          "multi": {
+            "type": "boolean",
+            "example": false,
+            "description": "Supports multi transactions"
+          },
+          "start_cut_off": {
+            "type": "string",
+            "example": "23:00",
+            "description": "Start of the daily cut off window (HH:mm)"
+          },
+          "end_cut_off": {
+            "type": "string",
+            "example": "01:00",
+            "description": "End of the daily cut off window (HH:mm)"
+          },
+          "desc": {
+            "type": "string",
+            "example": "Instant process",
+            "description": "Free-form supplier notes"
+          },
+          "actualPrice": {
+            "type": "number",
+            "example": 23000,
+            "description": "Base price used for margin checks"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "brand",
+          "type",
+          "price",
+          "code",
+          "status",
+          "unlimited_stock",
+          "stock",
+          "multi",
+          "start_cut_off",
+          "end_cut_off",
+          "desc",
+          "actualPrice"
+        ]
+      },
+      "ExtProductFilterDto": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "example": "ITM-001"
+          },
+          "game_name": {
+            "type": "string",
+            "example": "Mobile Legends"
+          },
+          "item_name": {
+            "type": "string",
+            "example": "86 Diamonds"
+          },
+          "price": {
+            "type": "number",
+            "example": 25000,
+            "description": "Exact price match. Compared against `admin_price` for Admin callers and `price` otherwise."
+          }
+        }
+      },
+      "GetExtProductListDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "size": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/ExtProductFilterDto"
+          }
+        }
+      },
+      "CreateExtProductCustomer": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "example": "ITM-001",
+            "description": "External item id of the product"
+          },
+          "cust_id": {
+            "type": "number",
+            "example": 42,
+            "description": "Id of the customer this price applies to"
+          },
+          "price": {
+            "type": "number",
+            "example": 26000,
+            "description": "Customer specific selling price"
+          }
+        },
+        "required": [
+          "item_id",
+          "cust_id",
+          "price"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe"
+          },
+          "password": {
+            "type": "string",
+            "example": "S3cretPassw0rd",
+            "format": "password"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "LoginResultDto": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "JWT to send back in the `authorization` header, verbatim (no \"Bearer \" prefix).",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJqb2huZG9lIn0.sig"
+          }
+        },
+        "required": [
+          "access_token"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "success"
+          },
+          "data": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LoginResultDto"
+              }
+            ]
+          },
+          "errorCode": {
+            "type": "string",
+            "example": "0000",
+            "description": "`1000` when the credentials are wrong"
+          }
+        },
+        "required": [
+          "message",
+          "data",
+          "errorCode"
+        ]
+      },
+      "SignUpDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "password": {
+            "type": "string",
+            "example": "S3cretPassw0rd",
+            "format": "password"
+          },
+          "email": {
+            "type": "string",
+            "example": "john@example.com"
+          },
+          "phone_number": {
+            "type": "string",
+            "example": "628123456789"
+          },
+          "referal_code": {
+            "type": "string",
+            "description": "Referral code of the admin this customer should be attached to.",
+            "example": "2f6b3f7a-4d1c-4b2e-9f0a-7c1d2e3f4a5b"
+          }
+        },
+        "required": [
+          "username",
+          "name",
+          "password"
+        ]
+      },
+      "GenerateApiKeyDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "SuperAdmin only: username to generate the key for. Omit to generate it for the caller.",
+            "example": "johndoe"
+          }
+        }
+      },
+      "GenerateReferalDto": {
+        "type": "object",
+        "properties": {
+          "referal_name": {
+            "type": "string",
+            "example": "reseller-jakarta",
+            "description": "Display name of the referral"
+          }
+        },
+        "required": [
+          "referal_name"
+        ]
+      },
+      "CheckReferalDto": {
+        "type": "object",
+        "properties": {
+          "referal_code": {
+            "type": "string",
+            "example": "2f6b3f7a-4d1c-4b2e-9f0a-7c1d2e3f4a5b"
+          }
+        },
+        "required": [
+          "referal_code"
+        ]
+      },
+      "AssignAdminDto": {
+        "type": "object",
+        "properties": {
+          "referal_code": {
+            "type": "string",
+            "description": "Referral code of the admin the current customer should be assigned to.",
+            "example": "2f6b3f7a-4d1c-4b2e-9f0a-7c1d2e3f4a5b"
+          }
+        },
+        "required": [
+          "referal_code"
+        ]
+      },
+      "AdminCustomerListDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "size": {
+            "type": "number",
+            "example": 10
+          },
+          "name": {
+            "type": "string",
+            "description": "Filter by customer name",
+            "example": "john"
+          }
+        },
+        "required": [
+          "page",
+          "size"
+        ]
+      },
+      "PaginationDto": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Page number, 1 based"
+          },
+          "size": {
+            "type": "number",
+            "example": 10,
+            "description": "Rows per page"
+          }
+        },
+        "required": [
+          "page",
+          "size"
+        ]
+      },
+      "GetBalanceHistoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 15,
+            "description": "Balance history record id"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "AddBankAccountDto": {
+        "type": "object",
+        "properties": {
+          "accountNo": {
+            "type": "string",
+            "example": "1234567890",
+            "description": "Bank account number"
+          },
+          "bankName": {
+            "type": "string",
+            "example": "BCA",
+            "description": "Bank name"
+          },
+          "accountName": {
+            "type": "string",
+            "example": "PT Contoh Sejahtera",
+            "description": "Name registered on the account"
+          }
+        },
+        "required": [
+          "accountNo",
+          "bankName",
+          "accountName"
+        ]
+      },
+      "CreateTopupRequestDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "example": 1000000,
+            "description": "Amount transferred, in rupiah"
+          },
+          "toAccount": {
+            "type": "string",
+            "example": "1234567890",
+            "description": "Destination account number"
+          },
+          "toAccountName": {
+            "type": "string",
+            "example": "PT Contoh Sejahtera",
+            "description": "Destination account holder"
+          },
+          "toBankName": {
+            "type": "string",
+            "example": "BCA",
+            "description": "Destination bank"
+          },
+          "fromAccount": {
+            "type": "string",
+            "example": "9876543210",
+            "description": "Source account number"
+          },
+          "fromAccountName": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "Source account holder"
+          },
+          "fromBankName": {
+            "type": "string",
+            "example": "BNI",
+            "description": "Source bank"
+          },
+          "txType": {
+            "type": "string",
+            "enum": [
+              "DEPOSIT",
+              "WITHDRAWAL"
+            ],
+            "example": "DEPOSIT"
+          },
+          "bankAccountId": {
+            "type": "number",
+            "example": 1,
+            "description": "Id of the destination bank account record"
+          }
+        },
+        "required": [
+          "amount",
+          "toAccount",
+          "toAccountName",
+          "toBankName",
+          "fromAccount",
+          "fromAccountName",
+          "fromBankName",
+          "txType",
+          "bankAccountId"
+        ]
+      },
+      "UpdateTopupRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 12,
+            "description": "Id of the top-up request to settle"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SUCCESS",
+              "REJECTED",
+              "FAILED"
+            ],
+            "example": "SUCCESS",
+            "description": "New status. `SUCCESS` credits the requesting admin balance."
+          },
+          "amount": {
+            "type": "number",
+            "example": 1000000,
+            "description": "Amount actually received. Coerced to a number before it is applied."
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "amount"
+        ]
+      },
+      "GetTransactionListDto": {
+        "type": "object",
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "example": "2025-08-03",
+            "description": "Inclusive lower bound, ISO date"
+          },
+          "endDate": {
+            "type": "string",
+            "example": "2025-08-31",
+            "description": "Inclusive upper bound, ISO date"
+          },
+          "accountName": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "Filter by account holder name"
+          },
+          "toBankName": {
+            "type": "string",
+            "example": "BCA",
+            "description": "Filter by destination bank"
+          },
+          "toBankAccount": {
+            "type": "string",
+            "example": "1234567890",
+            "description": "Filter by destination account"
+          },
+          "txType": {
+            "type": "string",
+            "enum": [
+              "DEPOSIT",
+              "WITHDRAWAL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SUCCESS",
+              "REJECTED",
+              "FAILED"
+            ]
+          },
+          "page": {
+            "type": "number",
+            "example": 1,
+            "default": 1,
+            "description": "Page number, 1 based"
+          },
+          "size": {
+            "type": "number",
+            "example": 10,
+            "default": 10,
+            "description": "Rows per page"
+          }
+        }
+      },
+      "GetTopupTransactionByIdDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 12,
+            "description": "Id of the top-up transaction"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    }
+  }
+}

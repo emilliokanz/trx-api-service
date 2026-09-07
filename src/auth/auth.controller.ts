@@ -1,6 +1,10 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 
+// Deliberately left out of the Swagger spec: JWTs are issued by
+// ExternalAuthController (POST /api/v1/auth/login).
+@ApiExcludeController()
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}

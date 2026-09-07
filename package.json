@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "swagger:gen": "ts-node --files -r tsconfig-paths/register src/swagger/generate-spec.ts"
   },
   "dependencies": {
     "@bull-board/api": "^6.7.10",
@@ -35,6 +36,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/platform-fastify": "^11.0.11",
     "@nestjs/schedule": "^5.0.1",
+    "@nestjs/swagger": "^11.4.7",
     "@prisma/client": "^6.5.0",
     "@types/node-telegram-bot-api": "^0.64.8",
     "axios": "^1.8.3",

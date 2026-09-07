@@ -8,6 +8,7 @@ import * as dotenv from 'dotenv';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import multiPart from '@fastify/multipart';
+import { setupSwagger } from './swagger/swagger.setup';
 
 dotenv.config();
 async function bootstrap() {
@@ -27,6 +28,10 @@ async function bootstrap() {
 
 
   app.enableCors();
+  
+  // Swagger UI: http://localhost:8080/docs  (raw spec: /docs-json)
+  setupSwagger(app);
+  
   await app.listen(8080, '0.0.0.0');
 }
 bootstrap();

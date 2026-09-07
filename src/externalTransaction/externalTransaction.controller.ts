@@ -12,11 +12,33 @@ import { Roles } from "@prisma/client";
 import { AuthService } from "src/auth/auth.service";
 import { ApiUserDetail } from "src/utils/decorators/api-user-detail.decorator";
 import { PrismaService } from "src/prisma/prisma.service";
+import {
+    ApiBody,
+    ApiOkResponse,
+    ApiOperation,
+    ApiSecurity,
+    ApiTags,
+} from "@nestjs/swagger";
+import { BatchIdDto, RefIdDto, TxHistoryQueryDto } from "./dto/txQuery.dto";
+import { API_SIGNATURE, API_USERNAME, JWT_AUTH } from "src/swagger/swagger.setup";
 
+@ApiTags('External Transaction')
 @Controller('/api/v1/tx')
 export class ExternalTransactionController {
     constructor(private extTrxService: ExternalTransactionService, private authService: AuthService, private prisma: PrismaService) { }
 
+    @ApiOperation({
+        summary: 'Submit a transaction request (web session)',
+        description:
+            'Queues one transaction per entry in `customer_no` and returns the batch id. ' +
+            'Requires BOTH a JWT and an `x-sign` header holding the HMAC-SHA256 hex digest ' +
+            'of the request body. `username` is taken from the JWT, not from the body. ' +
+            'Answers 200 with `errorCode` `4011` (missing signature) or `4012` (bad signature).',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiSecurity(API_SIGNATURE)
+    @ApiBody({ type: ExternalTxRequestDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UseGuards(AuthGuard)
     @Post('/request-web')
     @HttpCode(200)
@@ -46,6 +68,12 @@ export class ExternalTransactionController {
 
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Balance of the calling admin',
+        description: 'Reads the balance of the account identified by the JWT.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiOkResponse({ type: ApiResponseDto })
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/admin-balance')
     @HttpCode(200)
@@ -55,6 +83,15 @@ export class ExternalTransactionController {
         return await this.extTrxService.getAdminBalanceFn(true, null, user)
     }
 
+    @ApiOperation({
+        summary: 'Balance of the calling admin (API key)',
+        description:
+            'Machine-to-machine variant of `/admin-balance`: authenticate with the ' +
+            '`x-username` + `x-sign` header pair instead of a JWT.',
+    })
+    @ApiSecurity(API_USERNAME)
+    @ApiSecurity(API_SIGNATURE)
+    @ApiOkResponse({ type: ApiResponseDto })
     @UseGuards(AuthGuard)
     @Post('/ext/admin-balance')
     @HttpCode(200)
@@ -63,6 +100,13 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Status of a payment transaction',
+        description: 'Re-reads the transaction status from the supplier by reference id.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiBody({ type: RefIdDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UserRoles([Roles.SuperAdmin])
     @Post('/status')
     @HttpCode(200)
@@ -71,6 +115,15 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Direct supplier top-up',
+        description:
+            'Sends a single top-up straight to the supplier, bypassing the batch queue. ' +
+            'Unknown body properties are stripped by the validation pipe.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiBody({ type: TopUpRequestDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/topup')
     @HttpCode(200)
@@ -80,6 +133,14 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Transaction history grouped by batch',
+        description:
+            'Paginated list of transaction batches visible to the caller. Every filter is optional.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiBody({ type: TxHistoryQueryDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/history')
     @HttpCode(200)
@@ -99,6 +160,13 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Transactions inside one batch',
+        description: 'Returns every transaction belonging to the given `batch_id`.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiBody({ type: BatchIdDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/history-detail')
     @HttpCode(200)
@@ -109,6 +177,14 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Flat, paginated transaction list',
+        description:
+            'Same filters as `/history`, but returns individual transactions instead of batches.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiBody({ type: TxHistoryQueryDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/transaction-detail-list')
     @HttpCode(200)
@@ -124,6 +200,16 @@ export class ExternalTransactionController {
         )
     }
 
+    @ApiOperation({
+        summary: 'Submit a transaction request (API key)',
+        description:
+            'Machine-to-machine variant of `/request-web`. Authenticate with `x-username` + ' +
+            '`x-sign`; the signature is verified against the caller API key over the raw body.',
+    })
+    @ApiSecurity(API_USERNAME)
+    @ApiSecurity(API_SIGNATURE)
+    @ApiBody({ type: ExternalTxRequestDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UseGuards(AuthGuard)
     @Post('/ext/request')
     @HttpCode(200)
@@ -133,6 +219,14 @@ export class ExternalTransactionController {
     }
 
     
+    @ApiOperation({
+        summary: 'Transactions inside one batch (API key)',
+        description: 'Machine-to-machine variant of `/history-detail`.',
+    })
+    @ApiSecurity(API_USERNAME)
+    @ApiSecurity(API_SIGNATURE)
+    @ApiBody({ type: BatchIdDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UseGuards(AuthGuard)
     @Post('/ext/history-detail')
     @HttpCode(200)
@@ -141,6 +235,13 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Single transaction detail',
+        description: 'Looks up one transaction by its reference id.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiBody({ type: RefIdDto })
+    @ApiOkResponse({ type: ApiResponseDto })
     @UserRoles([Roles.SuperAdmin])
     @Post('/ext/tx-detail')
     @HttpCode(200)
@@ -149,6 +250,24 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Sign a payload with a user API key',
+        description:
+            'Helper endpoint: returns the HMAC-SHA256 hex digest of the posted JSON body, signed ' +
+            'with the API key of the user named in the `x-username` header. Use the result as ' +
+            'the `x-sign` header of the real request.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiSecurity(API_USERNAME)
+    @ApiBody({
+        description: 'The exact JSON body that will be sent to the signed endpoint.',
+        schema: {
+            type: 'object',
+            additionalProperties: true,
+            example: { code: 'ML5', customer_no: ['12345678(1234)'] },
+        },
+    })
+    @ApiOkResponse({ schema: { type: 'string', example: '3b8c1f9e...' } })
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/sign')
     async signPayload(@Body() payload: any, @Req() req: any) {
@@ -165,6 +284,22 @@ export class ExternalTransactionController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiOperation({
+        summary: 'Sign a payload with the service secret',
+        description:
+            'Same as `/sign`, but signed with `PAYLOAD_SECRET`. This is the signature expected ' +
+            'by `/request-web` and by the external top-up endpoints.',
+    })
+    @ApiSecurity(JWT_AUTH)
+    @ApiBody({
+        description: 'The exact JSON body that will be sent to the signed endpoint.',
+        schema: {
+            type: 'object',
+            additionalProperties: true,
+            example: { amount: 100000, toAccount: '1234567890' },
+        },
+    })
+    @ApiOkResponse({ schema: { type: 'string', example: '3b8c1f9e...' } })
     @UserRoles([Roles.SuperAdmin, Roles.Admin])
     @Post('/sign-sup')
     async signPayloadSup(@Body() payload: any, @Req() req: any) {
